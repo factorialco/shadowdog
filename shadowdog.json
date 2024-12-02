@@ -1,0 +1,23 @@
+{
+  "$schema": "schema.json",
+  "plugins": [
+    {
+      "name": "shadowdog-local-cache"
+    }
+  ],
+  "watchers": [
+    {
+      "files": ["src/build-schema.ts", "src/config.ts", "src/plugins/index.ts"],
+      "commands": [
+        {
+          "artifacts": [
+            {
+              "output": "schema.json"
+            }
+          ],
+          "command": "npm run build-schema"
+        }
+      ]
+    }
+  ]
+}

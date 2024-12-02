@@ -1,0 +1,52 @@
+{
+  "name": "@factorialco/shadowdog",
+  "version": "0.2.0",
+  "description": "",
+  "bin": {
+    "shadowdog": "dist/src/cli.js"
+  },
+  "main": "dist/src/cli.js",
+  "types": "dist/src/cli.d.ts",
+  "keywords": [],
+  "author": "David Morcillo <david.morcillo@factorial.co>, Ferran Basora <ferran.basora@factorial.co>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "prepublishOnly": "vitest run",
+    "test": "vitest run --silent",
+    "test:watch": "vitest --silent",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint",
+    "lint:inspect-config": "eslint --inspect-config",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build-schema": "tsx src/build-schema.ts",
+    "generate": "tsx src/cli.ts",
+    "watch": "tsx src/cli.ts --watch",
+    "all": "npm run build && npm run lint && npm run format && npm run generate && npm test"
+  },
+  "dependencies": {
+    "chalk": "^4",
+    "chokidar": "^3.5.3",
+    "commander": "^12.1.0",
+    "fs-extra": "^11.1.1",
+    "glob": "^10.2.1",
+    "minio": "8.0.0",
+    "tar": "7.2.0",
+    "zod": "3.23.8",
+    "zod-to-json-schema": "3.23.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@types/fs-extra": "11.0.1",
+    "@types/lodash": "^4.17.13",
+    "eslint": "^9.16.0",
+    "globals": "^15.13.0",
+    "prettier": "^3.4.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.16.0",
+    "vitest": "^2.1.7"
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "debounceTime": {
+      "type": "number",
+      "minimum": 0,
+      "default": 2000,
+      "description": "The time in milliseconds to wait before running the command after a file change."
+    },
+    "defaultIgnoredFiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "File path or glob"
+      },
+      "default": [".git", "**/node_modules"],
+      "description": "Default ignored files when watching files"
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "shadowdog-rake",
+              "shadowdog-local-cache",
+              "shadowdog-remote-aws-s3-cache",
+              "shadowdog-tag",
+              "shadowdog-tree",
+              "shadowdog-socket",
+              "shadowdog-git"
+            ]
+          },
+          "options": {}
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "default": [],
+      "description": "List of plugins to use"
+    },
+    "watchers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether the watcher is enabled or not"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "File path"
+            },
+            "default": [],
+            "description": "List of files to watch"
+          },
+          "invalidators": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "File path"
+                },
+                "default": [],
+                "description": "List of files that invalidate the cache when they change. These ones are not watched."
+              },
+              "environment": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "description": "Environment variable name"
+                },
+                "default": [],
+                "description": "List of environment variables that invalidate the cache when they change."
+              }
+            },
+            "additionalProperties": false,
+            "default": {
+              "files": [],
+              "environment": []
+            },
+            "description": "List of invalidators for the cache"
+          },
+          "ignored": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "File path"
+            },
+            "default": [],
+            "description": "List of files to ignore when they change"
+          },
+          "label": {
+            "type": "string"
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "The command to run when a file changes"
+                },
+                "workingDirectory": {
+                  "type": "string",
+                  "default": "",
+                  "description": "The directory where the command should run."
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": [],
+                  "description": "A list of tags to associate with the command. Used with the `generate` command to filter commands by tag."
+                },
+                "artifacts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "output": {
+                        "type": "string",
+                        "description": "Path to the output file or folder"
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "A description of the artifact"
+                      },
+                      "ignore": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "A list of files to ignore before saving the folder artifacts"
+                      }
+                    },
+                    "required": ["output"],
+                    "additionalProperties": false,
+                    "description": "An artifact produced by the command"
+                  },
+                  "default": [],
+                  "description": "List of artifacts produced by the command"
+                }
+              },
+              "required": ["command"],
+              "additionalProperties": false,
+              "description": "Command configuration when a file changes"
+            },
+            "description": "List of commands to run when a file changes"
+          }
+        },
+        "required": ["commands"],
+        "additionalProperties": false,
+        "description": "Watcher configuration"
+      },
+      "description": "List of watchers to run"
+    }
+  },
+  "required": ["watchers"],
+  "additionalProperties": false,
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
