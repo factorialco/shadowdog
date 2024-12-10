@@ -32,7 +32,8 @@
     "socket-communication",
     "schema-validation",
     "open-source",
-    "MIT-license"
+    "MIT-license",
+    "turborepo"
   ],
   "author": "David Morcillo <david.morcillo@factorial.co>, Ferran Basora <ferran.basora@factorial.co>",
   "license": "MIT",
