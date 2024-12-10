@@ -1,6 +1,6 @@
 # Shadowdog 🐾
 
-<img src="logo.png" alt="drawing" width="100"/>
+<img src="https://raw.githubusercontent.com/factorialco/shadowdog/refs/heads/main/logo.png" alt="drawing" width="100"/>
 
 **Shadowdog** is a Node.js package for generating artifacts as derivative processes of files in your project. Whether you need to generate static assets, precompiled resources, or any other transformations, Shadowdog makes it easy and powerful with its supercharged feature set.
 
@@ -30,7 +30,7 @@ Shadowdog uses a configuration file (`shadowdog.json`) to define workflows for g
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/factorialco/shadowdog/refs/heads/main/src/config/schema.json",
+  "$schema": "https://raw.githubusercontent.com/factorialco/shadowdog/refs/heads/main/schema.json",
   "plugins": [],
   "watchers": [
     {
