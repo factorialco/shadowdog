@@ -1,5 +1,5 @@
 import fs from 'fs-extra'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import shadowdogGit from './shadowdog-git'
 import process from 'process'
 
@@ -8,8 +8,12 @@ describe('shadowdog git', () => {
 
   beforeEach(() => {
     fs.mkdirpSync('tmp/.git')
-    fs.writeFile('tmp/.git/rebase-merge', 'deadbeef')
+    fs.writeFileSync('tmp/.git/rebase-merge', 'deadbeef')
     vi.spyOn(process, 'cwd').mockReturnValue('tmp')
+  })
+
+  afterEach(() => {
+    fs.rmSync('tmp/.git', { recursive: true })
   })
 
   describe('when there is a rebase in the current folder', () => {
