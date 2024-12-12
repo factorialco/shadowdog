@@ -4,5 +4,9 @@ export const logMessage = (message: string) => {
   console.log(message)
 }
 
+export const logError = (error: Error) => {
+  console.error(new Error(error.stack))
+}
+
 export const chalkFiles = (files: string[]) =>
   files.map((file) => `'${chalk.blue(file)}'`).join(', ')
