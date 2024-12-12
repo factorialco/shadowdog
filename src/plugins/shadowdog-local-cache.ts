@@ -184,6 +184,8 @@ const middleware: Middleware<PluginOptions> = async ({
 
   const mergedOptions = pluginOptionsSchema.parse(options)
 
+  mergedOptions.path = process.env.SHADOWDOG_LOCAL_CACHE_PATH ?? mergedOptions.path
+
   const currentCache = computeCache([...files, ...invalidators.files], invalidators.environment)
 
   fs.mkdirpSync(mergedOptions.path)

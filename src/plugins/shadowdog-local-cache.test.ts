@@ -1,5 +1,5 @@
 import fs from 'fs-extra'
-import { describe, it, beforeEach, afterEach, vi, expect } from 'vitest'
+import { describe, it, beforeEach, afterEach, vi, expect, afterAll } from 'vitest'
 import shadowdogLocalCache, { compressArtifact } from './shadowdog-local-cache'
 
 describe('shadowdog local cache', () => {
@@ -115,6 +115,44 @@ describe('shadowdog local cache', () => {
         expect(fs.readFileSync('tmp/tests/artifacts/foo', 'utf8')).toBe('foo')
         expect(fs.existsSync('tmp/tests/artifacts/bar')).toBe(false)
       })
+    })
+  })
+
+  describe('when local cache path is overriden by env var', () => {
+    beforeEach(async () => {
+      vi.stubEnv('SHADOWDOG_LOCAL_CACHE_PATH', 'tmp/tests/cache_overriden')
+      fs.writeFileSync('tmp/tests/artifacts/foo', 'foo')
+    })
+
+    afterAll(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('stores the cache in the defined path', async () => {
+      await shadowdogLocalCache.middleware({
+        config: {
+          command: 'echo foo',
+          artifacts: [
+            {
+              output: 'tmp/tests/artifacts/foo',
+            },
+          ],
+          tags: [],
+          workingDirectory: '',
+        },
+        files: [],
+        invalidators: {
+          environment: [],
+          files: [],
+        },
+        next,
+        abort: () => {},
+        options: {
+          path: 'tmp/tests/cache',
+        },
+      })
+      expect(fs.existsSync('tmp/tests/cache/0adeca2ac6.tar.gz')).toBe(false)
+      expect(fs.existsSync('tmp/tests/cache_overriden/0adeca2ac6.tar.gz')).toBe(true)
     })
   })
 })
