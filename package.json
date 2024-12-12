@@ -5,6 +5,10 @@
   "bin": {
     "shadowdog": "dist/src/cli.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/factorialco/shadowdog"
+  },
   "main": "dist/src/cli.js",
   "types": "dist/src/cli.d.ts",
   "keywords": [
