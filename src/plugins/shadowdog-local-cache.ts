@@ -9,11 +9,11 @@ import chalk from 'chalk'
 import { z } from 'zod'
 import { Middleware } from '.'
 import { CommandConfig } from '../config'
-import { logMessage } from '../utils'
+import { logMessage, logError } from '../utils'
 
 type FilterFn = (file: string) => boolean
 
-const compressFolder = (folderPath: string, outputPath: string, filter: FilterFn) => {
+export const compressArtifact = (folderPath: string, outputPath: string, filter?: FilterFn) => {
   return new Promise((resolve, reject) => {
     const tarStream = tar.c(
       {
@@ -37,7 +37,7 @@ const compressFolder = (folderPath: string, outputPath: string, filter: FilterFn
   })
 }
 
-const decompressFile = (tarGzPath: string, outputPath: string, filter: FilterFn) => {
+const decompressArtifact = (tarGzPath: string, outputPath: string, filter: FilterFn) => {
   return new Promise((resolve, reject) => {
     fs.mkdirpSync(outputPath)
 
@@ -78,17 +78,19 @@ const restoreCache = async (
       )
 
       try {
-        await decompressFile(
+        await decompressArtifact(
           cacheFilePath,
           path.join(process.cwd(), artifact.output, '..'),
           (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
         )
-      } catch {
+      } catch (error: unknown) {
         logMessage(
           `🚫 An error ocurred while restoring cache for artifact '${chalk.blue(
             artifact.output,
           )}' with id '${chalk.green(cacheFileName)}`,
         )
+        logError(error as Error)
+
         return artifact
       }
 
@@ -218,15 +220,16 @@ const middleware: Middleware<PluginOptions> = async ({
       const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
 
       try {
-        await compressFolder(sourceCacheFilePath, cacheFilePath, (filePath) =>
+        await compressArtifact(sourceCacheFilePath, cacheFilePath, (filePath) =>
           filterFn(artifact.ignore, artifact.output, filePath),
         )
-      } catch {
+      } catch (error: unknown) {
         logMessage(
-          `🚫 An error ocurred while storing global cache for artifact '${
+          `🚫 An error ocurred while storing cache for artifact '${
             artifact.output
           }' with id '${chalk.green(cacheFileName)}`,
         )
+        logError(error as Error)
       }
     }),
   )

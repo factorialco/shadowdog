@@ -42,7 +42,7 @@
     "prepare": "npm run build",
     "prepublishOnly": "vitest run",
     "test": "vitest run --silent",
-    "test:watch": "vitest --silent",
+    "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "lint": "eslint",
     "lint:inspect-config": "eslint --inspect-config",
