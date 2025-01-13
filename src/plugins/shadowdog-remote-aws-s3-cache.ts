@@ -11,7 +11,7 @@ import { z } from 'zod'
 
 import { ArtifactConfig } from '../config'
 import { CommandConfig } from '../config'
-import { logMessage } from '../utils'
+import { logError, logMessage } from '../utils'
 import { Middleware } from '.'
 
 const createClient = () => {
@@ -72,8 +72,10 @@ const saveRemoteCache = async (
     logMessage(
       `🌐 Not able to store artifact '${chalk.blue(artifact.output)}' -> '${chalk.green(
         objectName,
-      )}' in remote cache because of an error: ${chalk.red(error)}`,
+      )}' in remote cache`,
     )
+
+    logError(error as Error)
 
     return false
   }
@@ -100,8 +102,9 @@ const restoreRemoteCache = async (
     logMessage(
       `🌐 Not able to restore artifact '${chalk.blue(artifact.output)}' -> '${chalk.green(
         objectName,
-      )}' in remote cache because of an error: ${chalk.red(error)}`,
+      )}' in remote cache`,
     )
+    logError(error as Error)
 
     return false
   }
@@ -257,26 +260,39 @@ const middleware: Middleware<PluginOptions> = async ({
       const cacheFileName = computeFileCacheName(currentCache, artifact.output)
       const cacheFilePath = path.join(mergedOptions.path, `${cacheFileName}.tar.gz`)
       const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
-      const stream = tar
-        .create(
-          {
-            gzip: false,
-            cwd: path.dirname(sourceCacheFilePath),
-            filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
-          },
-          [path.basename(sourceCacheFilePath)],
+
+      try {
+        const stream = tar
+          .create(
+            {
+              gzip: false,
+              cwd: path.dirname(sourceCacheFilePath),
+              filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
+            },
+            [path.basename(sourceCacheFilePath)],
+          )
+          .pipe(zlib.createGzip())
+
+        logMessage(
+          `🌐 Storing artifact '${chalk.blue(
+            artifact.output,
+          )}' in remote cache with value '${chalk.green(cacheFileName)}'`,
         )
-        .pipe(zlib.createGzip())
 
-      logMessage(
-        `🌐 Storing artifact '${chalk.blue(
-          artifact.output,
-        )}' in remote cache with value '${chalk.green(cacheFileName)}'`,
-      )
+        await saveRemoteCache(client, mergedOptions.bucketName, stream, cacheFilePath, artifact)
+      } catch (error: unknown) {
+        logMessage(
+          `🚫 An error ocurred while storing cache for artifact '${
+            artifact.output
+          }' with id '${chalk.green(cacheFileName)}`,
+        )
 
-      await saveRemoteCache(client, mergedOptions.bucketName, stream, cacheFilePath, artifact)
+        logError(error as Error)
+      }
     }),
-  )
+  ).catch((error) => {
+    logError(error)
+  })
 }
 
 export default {

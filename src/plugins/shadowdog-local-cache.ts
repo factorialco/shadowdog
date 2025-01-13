@@ -234,7 +234,9 @@ const middleware: Middleware<PluginOptions> = async ({
         logError(error as Error)
       }
     }),
-  )
+  ).catch((error) => {
+    logError(error as Error)
+  })
 }
 
 export default {
