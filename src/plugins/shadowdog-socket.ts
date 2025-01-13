@@ -31,17 +31,17 @@ const notifyState = (socketPath: string, event: Event) => {
   return new Promise<void>((resolve) => {
     const socket = new net.Socket()
 
-    socket.connect(socketPath, () => {
-      socket.write(JSON.stringify(event))
-      socket.destroy()
-      resolve()
-    })
-
     socket.on('error', () => {
       logMessage(
         `🚫 Could not emit event ${chalk.cyan(event.type)} to socket at ${chalk.blue(socketPath)}`,
       )
       // NOTE: We don't want to restart shadowdog when this fails. This is a fire and forget notification.
+      resolve()
+    })
+
+    socket.connect(socketPath, () => {
+      socket.write(JSON.stringify(event))
+      socket.destroy()
       resolve()
     })
   })

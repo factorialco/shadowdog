@@ -26,14 +26,14 @@ export const compressArtifact = (folderPath: string, outputPath: string, filter?
     const gzipStream = zlib.createGzip()
     const writeStream = fs.createWriteStream(outputPath)
 
-    tarStream.pipe(gzipStream).pipe(writeStream)
-
     writeStream.on('finish', () => {
       resolve(null)
     })
     writeStream.on('error', (err) => {
       reject(err)
     })
+
+    tarStream.pipe(gzipStream).pipe(writeStream)
   })
 }
 
@@ -45,8 +45,6 @@ const decompressArtifact = (tarGzPath: string, outputPath: string, filter: Filte
     const unzipStream = zlib.createGunzip()
     const tarExtractStream = tar.x({ cwd: outputPath, filter })
 
-    readStream.pipe(unzipStream).pipe(tarExtractStream)
-
     tarExtractStream.on('finish', () => {
       resolve(null)
     })
@@ -56,6 +54,8 @@ const decompressArtifact = (tarGzPath: string, outputPath: string, filter: Filte
     unzipStream.on('error', (err) => {
       reject(err)
     })
+
+    readStream.pipe(unzipStream).pipe(tarExtractStream)
   })
 }
 
