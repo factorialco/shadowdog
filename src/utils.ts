@@ -5,7 +5,7 @@ export const logMessage = (message: string) => {
 }
 
 export const logError = (error: Error) => {
-  console.error(new Error(error.stack))
+  console.error(chalk.red(new Error(error.stack)))
 }
 
 export const chalkFiles = (files: string[]) =>
