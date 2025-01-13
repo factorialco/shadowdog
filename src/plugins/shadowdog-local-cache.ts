@@ -15,7 +15,6 @@ type FilterFn = (file: string) => boolean
 
 export const compressArtifact = (folderPath: string, outputPath: string, filter?: FilterFn) => {
   return new Promise((resolve, reject) => {
-    console.log('DEBUG: compressing in local cache with tar')
     const tarStream = tar.c(
       {
         gzip: false,
@@ -42,8 +41,6 @@ export const compressArtifact = (folderPath: string, outputPath: string, filter?
 const decompressArtifact = (tarGzPath: string, outputPath: string, filter: FilterFn) => {
   return new Promise((resolve, reject) => {
     fs.mkdirpSync(outputPath)
-
-    console.log('DEBUG: decompressing in local cache with tar')
 
     const readStream = fs.createReadStream(tarGzPath)
     const unzipStream = zlib.createGunzip()
@@ -91,7 +88,7 @@ const restoreCache = async (
         logMessage(
           `🚫 An error ocurred while restoring cache for artifact '${chalk.blue(
             artifact.output,
-          )}' with id '${chalk.green(cacheFileName)}`,
+          )}' with id '${chalk.green(cacheFileName)}'`,
         )
         logError(error as Error)
 
@@ -233,7 +230,7 @@ const middleware: Middleware<PluginOptions> = async ({
         logMessage(
           `🚫 An error ocurred while storing cache for artifact '${
             artifact.output
-          }' with id '${chalk.green(cacheFileName)}`,
+          }' with id '${chalk.green(cacheFileName)}'`,
         )
         logError(error as Error)
       }
