@@ -92,6 +92,8 @@ const restoreRemoteCache = async (
   try {
     const stream = await client.getObject(bucket, objectName)
 
+    console.log('DEBUG: decompressing in remote cache with tar')
+
     stream.pipe(
       tar.extract({
         cwd: path.join(process.cwd(), artifact.output, '..'),
@@ -262,16 +264,32 @@ const middleware: Middleware<PluginOptions> = async ({
       const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
 
       try {
-        const stream = tar
-          .create(
-            {
-              gzip: false,
-              cwd: path.dirname(sourceCacheFilePath),
-              filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
-            },
-            [path.basename(sourceCacheFilePath)],
-          )
-          .pipe(zlib.createGzip())
+        console.log('DEBUG: compressing in remote cache with tar')
+
+        const tarStream = tar.create(
+          {
+            gzip: false,
+            cwd: path.dirname(sourceCacheFilePath),
+            filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
+          },
+          [path.basename(sourceCacheFilePath)],
+        )
+
+        tarStream.on('error', (error) => {
+          logError(error as Error)
+        })
+
+        const gzipStream = zlib.createGzip()
+
+        gzipStream.on('error', (error) => {
+          logError(error as Error)
+        })
+
+        const stream = tarStream.pipe(gzipStream)
+
+        stream.on('error', (error) => {
+          logError(error as Error)
+        })
 
         logMessage(
           `🌐 Storing artifact '${chalk.blue(
