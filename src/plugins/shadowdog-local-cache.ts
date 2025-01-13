@@ -15,6 +15,7 @@ type FilterFn = (file: string) => boolean
 
 export const compressArtifact = (folderPath: string, outputPath: string, filter?: FilterFn) => {
   return new Promise((resolve, reject) => {
+    console.log('DEBUG: compressing in local cache with tar')
     const tarStream = tar.c(
       {
         gzip: false,
@@ -29,9 +30,10 @@ export const compressArtifact = (folderPath: string, outputPath: string, filter?
     writeStream.on('finish', () => {
       resolve(null)
     })
-    writeStream.on('error', (err) => {
-      reject(err)
-    })
+
+    writeStream.on('error', reject)
+    gzipStream.on('error', reject)
+    tarStream.on('error', reject)
 
     tarStream.pipe(gzipStream).pipe(writeStream)
   })
@@ -40,6 +42,8 @@ export const compressArtifact = (folderPath: string, outputPath: string, filter?
 const decompressArtifact = (tarGzPath: string, outputPath: string, filter: FilterFn) => {
   return new Promise((resolve, reject) => {
     fs.mkdirpSync(outputPath)
+
+    console.log('DEBUG: decompressing in local cache with tar')
 
     const readStream = fs.createReadStream(tarGzPath)
     const unzipStream = zlib.createGunzip()
