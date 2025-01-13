@@ -92,8 +92,6 @@ const restoreRemoteCache = async (
   try {
     const stream = await client.getObject(bucket, objectName)
 
-    console.log('DEBUG: decompressing in remote cache with tar')
-
     stream.pipe(
       tar.extract({
         cwd: path.join(process.cwd(), artifact.output, '..'),
@@ -264,8 +262,6 @@ const middleware: Middleware<PluginOptions> = async ({
       const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
 
       try {
-        console.log('DEBUG: compressing in remote cache with tar')
-
         const tarStream = tar.create(
           {
             gzip: false,
