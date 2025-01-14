@@ -91,10 +91,13 @@ const restoreRemoteCache = async (
 ) => {
   try {
     const stream = await client.getObject(bucket, objectName)
+    const outputPath = path.join(process.cwd(), artifact.output, '..')
+
+    fs.mkdirpSync(outputPath)
 
     stream.pipe(
       tar.extract({
-        cwd: path.join(process.cwd(), artifact.output, '..'),
+        cwd: outputPath,
         filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
       }),
     )
