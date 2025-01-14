@@ -7,12 +7,12 @@ import fs from 'fs-extra'
 import chalk from 'chalk'
 import path from 'path'
 import { execSync } from 'child_process'
-import { z } from 'zod'
 
 import { ArtifactConfig } from '../config'
 import { CommandConfig } from '../config'
 import { logError, logMessage, readShadowdogVersion } from '../utils'
 import { Middleware } from '.'
+import { PluginConfig } from '../pluginTypes'
 
 const createClient = () => {
   const { AWS_PROFILE } = process.env
@@ -145,7 +145,7 @@ const restoreCache = async (
   client: minio.Client,
   commandConfig: CommandConfig,
   currentCache: string,
-  pluginOptions: PluginOptions,
+  pluginOptions: PluginConfig<'shadowdog-remote-aws-s3-cache'>,
 ) => {
   // Check if we can reuse some artifacts from the cache
   const promisesToGenerate = commandConfig.artifacts.map(async (artifact) => {
@@ -214,13 +214,7 @@ const computeCache = (files: string[], environment: string[]) => {
   return hash.digest('hex').slice(0, 10)
 }
 
-const pluginOptionsSchema = z
-  .object({ bucketName: z.string(), path: z.string().default('shadowdog/cache') })
-  .strict()
-
-type PluginOptions = z.infer<typeof pluginOptionsSchema>
-
-const middleware: Middleware<PluginOptions> = async ({
+const middleware: Middleware<PluginConfig<'shadowdog-remote-aws-s3-cache'>> = async ({
   config,
   files,
   invalidators,
@@ -232,8 +226,6 @@ const middleware: Middleware<PluginOptions> = async ({
     return next()
   }
 
-  const mergedOptions = pluginOptionsSchema.parse(options)
-
   const client = createClient()
 
   if (!client) {
@@ -242,7 +234,7 @@ const middleware: Middleware<PluginOptions> = async ({
 
   const currentCache = computeCache([...files, ...invalidators.files], invalidators.environment)
 
-  const hasBeenRestored = await restoreCache(client, config, currentCache, mergedOptions)
+  const hasBeenRestored = await restoreCache(client, config, currentCache, options)
 
   if (hasBeenRestored) {
     return abort()
@@ -262,7 +254,7 @@ const middleware: Middleware<PluginOptions> = async ({
       }
 
       const cacheFileName = computeFileCacheName(currentCache, artifact.output)
-      const cacheFilePath = path.join(mergedOptions.path, `${cacheFileName}.tar.gz`)
+      const cacheFilePath = path.join(options.path, `${cacheFileName}.tar.gz`)
       const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
 
       try {
@@ -297,7 +289,7 @@ const middleware: Middleware<PluginOptions> = async ({
           )}' in remote cache with value '${chalk.green(cacheFileName)}'`,
         )
 
-        await saveRemoteCache(client, mergedOptions.bucketName, stream, cacheFilePath, artifact)
+        await saveRemoteCache(client, options.bucketName, stream, cacheFilePath, artifact)
       } catch (error: unknown) {
         logMessage(
           `🚫 An error ocurred while storing cache for artifact '${

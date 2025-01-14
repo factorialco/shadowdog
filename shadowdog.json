@@ -7,7 +7,12 @@
   ],
   "watchers": [
     {
-      "files": ["src/build-schema.ts", "src/config.ts", "src/plugins/index.ts"],
+      "files": [
+        "src/build-schema.ts",
+        "src/config.ts",
+        "src/plugins/index.ts",
+        "src/pluginTypes.ts"
+      ],
       "commands": [
         {
           "artifacts": [

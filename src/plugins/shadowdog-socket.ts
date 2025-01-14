@@ -1,8 +1,8 @@
-import { z } from 'zod'
-import { Listener } from '.'
 import * as net from 'net'
+import { Listener } from '.'
 import { logMessage } from '../utils'
 import chalk from 'chalk'
+import { PluginConfig } from '../pluginTypes'
 
 type Event =
   | {
@@ -46,27 +46,21 @@ const notifyState = (socketPath: string, event: Event) => {
   })
 }
 
-const pluginOptionsSchema = z.object({ path: z.string().default('/tmp/shadowdog.sock') }).strict()
-
-type PluginOptions = z.infer<typeof pluginOptionsSchema>
-
-const listener: Listener<PluginOptions> = (shadowdogEventListener, options) => {
-  const mergedOptions = pluginOptionsSchema.parse(options)
-
-  shadowdogEventListener.on('initialized', () => {
-    notifyState(mergedOptions.path, {
+const listener: Listener<PluginConfig<'shadowdog-socket'>> = (eventEmitter, options) => {
+  eventEmitter.on('initialized', () => {
+    notifyState(options.path, {
       type: 'INITIALIZED',
     })
   })
 
-  shadowdogEventListener.on('exit', () => {
-    notifyState(mergedOptions.path, {
+  eventEmitter.on('exit', () => {
+    notifyState(options.path, {
       type: 'CLEAR',
     })
   })
 
-  shadowdogEventListener.on('begin', (payload) => {
-    notifyState(mergedOptions.path, {
+  eventEmitter.on('begin', (payload) => {
+    notifyState(options.path, {
       type: 'CHANGED_FILE',
       payload: {
         file: payload.artifacts.map((artifact) => artifact.output).join(', '),
@@ -75,8 +69,8 @@ const listener: Listener<PluginOptions> = (shadowdogEventListener, options) => {
     })
   })
 
-  shadowdogEventListener.on('end', (payload) => {
-    notifyState(mergedOptions.path, {
+  eventEmitter.on('end', (payload) => {
+    notifyState(options.path, {
       type: 'CHANGED_FILE',
       payload: {
         file: payload.artifacts.map((artifact) => artifact.output).join(', '),
@@ -85,8 +79,8 @@ const listener: Listener<PluginOptions> = (shadowdogEventListener, options) => {
     })
   })
 
-  shadowdogEventListener.on('error', (payload) => {
-    notifyState(mergedOptions.path, {
+  eventEmitter.on('error', (payload) => {
+    notifyState(options.path, {
       type: 'ERROR',
       payload: {
         file: payload.artifacts.map((artifact) => artifact.output).join(', '),
@@ -96,4 +90,6 @@ const listener: Listener<PluginOptions> = (shadowdogEventListener, options) => {
   })
 }
 
-export default { listener }
+export default {
+  listener,
+}
