@@ -1,10 +1,13 @@
 import { EventEmitter } from 'node:events'
+import { ArtifactConfig } from './config'
 
-type ShadowdogEvents = Record<
-  'initialized' | 'exit' | 'begin' | 'end' | 'error' | 'changed',
-  // TODO: review this
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any
->
+type ShadowdogEvents = {
+  initialized: []
+  exit: [number?]
+  begin: [{ artifacts: ArtifactConfig[] }]
+  end: [{ artifacts: ArtifactConfig[] }]
+  error: [{ artifacts: ArtifactConfig[]; errorMessage: string }]
+  changed: [{ path: string; type: 'add' | 'change' | 'unlink' }]
+}
 
 export class ShadowdogEventEmitter extends EventEmitter<ShadowdogEvents> {}
