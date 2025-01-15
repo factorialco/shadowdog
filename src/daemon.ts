@@ -158,8 +158,24 @@ export const runDaemon = async (configFilePath: string) => {
 
   eventEmitter.emit('initialized')
 
-  process.on('exit', async () => {
-    eventEmitter.emit('exit')
-    // TODO: wait for listeners do die
-  })
+  let isShuttingDown = false
+  const shutdown = async () => {
+    if (isShuttingDown) return
+    isShuttingDown = true
+
+    try {
+      logMessage('👋 Shutting down Shadowdog...')
+      // emit exit event and wait for all listeners to complete
+      await Promise.all(eventEmitter.listeners('exit').map((listener) => listener()))
+      eventEmitter.removeAllListeners('exit')
+      logMessage('✨ Shutdown complete')
+      process.exit(0)
+    } catch (error) {
+      logMessage(`🚨 Error during shutdown: ${(error as Error).message}`)
+      process.exit(1)
+    }
+  }
+
+  process.on('SIGINT', shutdown)
+  process.on('SIGTERM', shutdown)
 }
