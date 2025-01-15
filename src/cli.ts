@@ -4,7 +4,7 @@ import pjson from '../package.json'
 import path from 'path'
 import { runDaemon } from './daemon'
 import { generate } from './generate'
-import { logMessage } from './utils'
+import { logError, logMessage } from './utils'
 
 const DEFAULT_CONFIG_FILENAME = 'shadowdog.json'
 
@@ -36,7 +36,12 @@ cli
       )
     }
 
-    await generate(path.relative(process.cwd(), config))
+    try {
+      await generate(path.relative(process.cwd(), config))
+    } catch (error: unknown) {
+      logMessage(`🚫 Unable to perform the initial generation because some command has failed.`)
+      logError(error as Error)
+    }
 
     if (watch) {
       runDaemon(path.relative(process.cwd(), config))
