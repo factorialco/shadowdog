@@ -2,7 +2,7 @@ import fs from 'fs-extra'
 import { logMessage } from './utils'
 import { z } from 'zod'
 import chalk from 'chalk'
-import { PluginNameEnum } from './plugins'
+import { pluginOptionsSchema } from './pluginTypes'
 
 export const configSchema = z
   .object({
@@ -18,11 +18,7 @@ export const configSchema = z
       .optional()
       .default(['.git', '**/node_modules'])
       .describe('Default ignored files when watching files'),
-    plugins: z
-      .array(z.object({ name: PluginNameEnum, options: z.any() }).strict())
-      .optional()
-      .default([])
-      .describe('List of plugins to use'),
+    plugins: z.array(pluginOptionsSchema).optional().default([]).describe('List of plugins to use'),
     watchers: z
       .array(
         z

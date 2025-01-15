@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod'
 
-import { CommandConfig, PluginsConfig, InvalidatorConfig } from '../config'
+import { CommandConfig, InvalidatorConfig, PluginsConfig } from '../config'
 import { Task } from '../generate'
+import { pluginOptionsSchema } from '../pluginTypes'
 
 import shadowdogLocalCache from './shadowdog-local-cache'
 import shadowdogRake from './shadowdog-rake'
@@ -13,14 +13,14 @@ import shadowdogSocket from './shadowdog-socket'
 import shadowdogGit from './shadowdog-git'
 import { ShadowdogEventEmitter } from '../events'
 
-export type Listener<Options = any> = (
+export type Listener<Options = unknown> = (
   shadowdogEventListener: ShadowdogEventEmitter,
   options: Options,
 ) => void
 
 export type Command = (activeWatchers: Task) => Task
 
-export type Middleware<Options = any> = (control: {
+export type Middleware<Options = unknown> = (control: {
   files: string[]
   invalidators: InvalidatorConfig
   config: CommandConfig
@@ -31,23 +31,32 @@ export type Middleware<Options = any> = (control: {
   eventEmitter?: ShadowdogEventEmitter
 }) => Promise<unknown>
 
-type MiddlewarePlugin = { middleware: Middleware }
-type CommandPlugin = { command: Command }
-type EventListenerPlugin = { listener: Listener }
+type PluginsMap = {
+  'shadowdog-rake': { command: Command }
+  'shadowdog-local-cache': {
+    middleware: Middleware<
+      Extract<z.infer<typeof pluginOptionsSchema>, { name: 'shadowdog-local-cache' }>['options']
+    >
+  }
+  'shadowdog-remote-aws-s3-cache': {
+    middleware: Middleware<
+      Extract<
+        z.infer<typeof pluginOptionsSchema>,
+        { name: 'shadowdog-remote-aws-s3-cache' }
+      >['options']
+    >
+  }
+  'shadowdog-tag': { command: Command }
+  'shadowdog-tree': { command: Command }
+  'shadowdog-socket': {
+    listener: Listener<
+      Extract<z.infer<typeof pluginOptionsSchema>, { name: 'shadowdog-socket' }>['options']
+    >
+  }
+  'shadowdog-git': { middleware: Middleware }
+}
 
-export const PluginNameEnum = z.enum([
-  'shadowdog-rake',
-  'shadowdog-local-cache',
-  'shadowdog-remote-aws-s3-cache',
-  'shadowdog-tag',
-  'shadowdog-tree',
-  'shadowdog-socket',
-  'shadowdog-git',
-])
-
-type PluginName = z.infer<typeof PluginNameEnum>
-
-const PLUGINS_MAP: Record<PluginName, MiddlewarePlugin | CommandPlugin | EventListenerPlugin> = {
+const PLUGINS_MAP = {
   'shadowdog-rake': shadowdogRake,
   'shadowdog-local-cache': shadowdogLocalCache,
   'shadowdog-remote-aws-s3-cache': shadowdogRemoteAwsS3Cache,
@@ -55,33 +64,48 @@ const PLUGINS_MAP: Record<PluginName, MiddlewarePlugin | CommandPlugin | EventLi
   'shadowdog-tree': shadowdogTree,
   'shadowdog-socket': shadowdogSocket,
   'shadowdog-git': shadowdogGit,
-} as const
+} as const satisfies PluginsMap
 
 const filterUsedPlugins = (config: PluginsConfig) =>
   config.map(({ name, options }) => ({
     name,
-    fn: PLUGINS_MAP[name],
+    fn: PLUGINS_MAP[name as keyof typeof PLUGINS_MAP],
     options,
   }))
 
 export const filterMiddlewarePlugins = (config: PluginsConfig) => {
   return filterUsedPlugins(config).filter(
-    (data): data is { name: PluginName; fn: MiddlewarePlugin; options: unknown } =>
-      'middleware' in data.fn,
+    (
+      data,
+    ): data is {
+      name: keyof PluginsMap
+      fn: Extract<PluginsMap[keyof PluginsMap], { middleware: Middleware<unknown> }>
+      options: z.infer<typeof pluginOptionsSchema>['options']
+    } => 'middleware' in data.fn,
   )
 }
 
 export const filterCommandPlugins = (pluginsConfig: PluginsConfig) => {
   return filterUsedPlugins(pluginsConfig).filter(
-    (data): data is { name: PluginName; fn: CommandPlugin; options: unknown } =>
-      'command' in data.fn,
+    (
+      data,
+    ): data is {
+      name: keyof PluginsMap
+      fn: { command: Command }
+      options: z.infer<typeof pluginOptionsSchema>['options']
+    } => 'command' in data.fn,
   )
 }
 
 export const filterEventListenerPlugins = (pluginsConfig: PluginsConfig) => {
   return filterUsedPlugins(pluginsConfig).filter(
-    (data): data is { name: PluginName; fn: EventListenerPlugin; options: unknown } =>
-      'listener' in data.fn,
+    (
+      data,
+    ): data is {
+      name: keyof PluginsMap
+      fn: { listener: Listener<z.infer<typeof pluginOptionsSchema>['options']> }
+      options: z.infer<typeof pluginOptionsSchema>['options']
+    } => 'listener' in data.fn,
   )
 }
 
