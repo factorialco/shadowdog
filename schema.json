@@ -52,6 +52,14 @@
                   "path": {
                     "type": "string",
                     "default": "/tmp/shadowdog/cache"
+                  },
+                  "read": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "write": {
+                    "type": "boolean",
+                    "default": true
                   }
                 },
                 "additionalProperties": false,
@@ -77,6 +85,14 @@
                   },
                   "bucketName": {
                     "type": "string"
+                  },
+                  "read": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "write": {
+                    "type": "boolean",
+                    "default": true
                   }
                 },
                 "required": ["bucketName"],

@@ -181,59 +181,74 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
     return next()
   }
 
+  const readCache = process.env.SHADOWDOG_LOCAL_CACHE_READ
+    ? process.env.SHADOWDOG_LOCAL_CACHE_READ === 'true'
+    : options.read
+
+  const writeCache = process.env.SHADOWDOG_LOCAL_CACHE_WRITE
+    ? process.env.SHADOWDOG_LOCAL_CACHE_WRITE === 'true'
+    : options.write
+
   const cachePath = process.env.SHADOWDOG_LOCAL_CACHE_PATH ?? options.path
 
   const currentCache = computeCache([...files, ...invalidators.files], invalidators.environment)
 
   fs.mkdirpSync(cachePath)
 
-  const hasBeenRestored = await restoreCache(config, currentCache, { path: cachePath })
+  if (readCache) {
+    const hasBeenRestored = await restoreCache(config, currentCache, {
+      ...options,
+      path: cachePath,
+    })
 
-  if (hasBeenRestored) {
-    return abort()
+    if (hasBeenRestored) {
+      return abort()
+    }
   }
 
   await next()
 
-  return Promise.all(
-    config.artifacts.map(async (artifact) => {
-      if (!fs.existsSync(path.join(process.cwd(), artifact.output))) {
+  if (writeCache) {
+    return Promise.all(
+      config.artifacts.map(async (artifact) => {
+        if (!fs.existsSync(path.join(process.cwd(), artifact.output))) {
+          logMessage(
+            `📦 Not able to store artifact '${chalk.blue(
+              artifact.output,
+            )}' in cache because is not present`,
+          )
+          return
+        }
+
+        const cacheFileName = computeFileCacheName(currentCache, artifact.output)
+
+        const cacheFilePath = path.join(cachePath, `${cacheFileName}.tar.gz`)
+
         logMessage(
-          `📦 Not able to store artifact '${chalk.blue(
-            artifact.output,
-          )}' in cache because is not present`,
+          `📦 Storing artifact '${chalk.blue(artifact.output)}' in cache with value '${chalk.green(
+            cacheFileName,
+          )}'`,
         )
-        return
-      }
 
-      const cacheFileName = computeFileCacheName(currentCache, artifact.output)
+        const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
 
-      const cacheFilePath = path.join(cachePath, `${cacheFileName}.tar.gz`)
-
-      logMessage(
-        `📦 Storing artifact '${chalk.blue(artifact.output)}' in cache with value '${chalk.green(
-          cacheFileName,
-        )}'`,
-      )
-
-      const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
-
-      try {
-        await compressArtifact(sourceCacheFilePath, cacheFilePath, (filePath) =>
-          filterFn(artifact.ignore, artifact.output, filePath),
-        )
-      } catch (error: unknown) {
-        logMessage(
-          `🚫 An error ocurred while storing cache for artifact '${
-            artifact.output
-          }' with id '${chalk.green(cacheFileName)}'`,
-        )
-        logError(error as Error)
-      }
-    }),
-  ).catch((error) => {
-    logError(error as Error)
-  })
+        try {
+          await compressArtifact(sourceCacheFilePath, cacheFilePath, (filePath) =>
+            filterFn(artifact.ignore, artifact.output, filePath),
+          )
+        } catch (error: unknown) {
+          logMessage(
+            `🚫 An error ocurred while storing cache for artifact '${
+              artifact.output
+            }' with id '${chalk.green(cacheFileName)}'`,
+          )
+          logError(error as Error)
+        }
+      }),
+    ).catch((error) => {
+      logError(error as Error)
+    })
+  }
 }
 
 export default {

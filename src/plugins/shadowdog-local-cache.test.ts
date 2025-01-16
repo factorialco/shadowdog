@@ -47,6 +47,8 @@ describe('shadowdog local cache', () => {
         abort: () => {},
         options: {
           path: 'tmp/tests/cache',
+          read: true,
+          write: true,
         },
       })
       expect(next).toHaveBeenCalled()
@@ -82,6 +84,8 @@ describe('shadowdog local cache', () => {
           abort: () => {},
           options: {
             path: 'tmp/tests/cache',
+            read: true,
+            write: true,
           },
         })
         expect(next).not.toHaveBeenCalled()
@@ -119,6 +123,8 @@ describe('shadowdog local cache', () => {
           abort: () => {},
           options: {
             path: 'tmp/tests/cache',
+            read: true,
+            write: true,
           },
         })
         expect(next).not.toHaveBeenCalled()
@@ -159,6 +165,8 @@ describe('shadowdog local cache', () => {
         abort: () => {},
         options: {
           path: 'tmp/tests/cache',
+          read: true,
+          write: true,
         },
       })
       expect(fs.existsSync('tmp/tests/cache/0adeca2ac6.tar.gz')).toBe(false)
