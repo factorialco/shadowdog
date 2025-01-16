@@ -4,13 +4,21 @@ export const pluginOptionsSchema = z.discriminatedUnion('name', [
   z.object({ name: z.literal('shadowdog-rake'), options: z.object({}).optional() }),
   z.object({
     name: z.literal('shadowdog-local-cache'),
-    options: z.object({ path: z.string().default('/tmp/shadowdog/cache') }).default({}),
+    options: z
+      .object({
+        path: z.string().default('/tmp/shadowdog/cache'),
+        read: z.boolean().default(true),
+        write: z.boolean().default(true),
+      })
+      .default({}),
   }),
   z.object({
     name: z.literal('shadowdog-remote-aws-s3-cache'),
     options: z.object({
       path: z.string().default('shadowdog/cache'),
       bucketName: z.string(),
+      read: z.boolean().default(true),
+      write: z.boolean().default(true),
     }),
   }),
   z.object({ name: z.literal('shadowdog-tag'), options: z.object({}).optional() }),

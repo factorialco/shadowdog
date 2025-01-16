@@ -232,77 +232,89 @@ const middleware: Middleware<PluginConfig<'shadowdog-remote-aws-s3-cache'>> = as
     return await next()
   }
 
+  const readCache = process.env.SHADOWDOG_REMOTE_CACHE_READ
+    ? process.env.SHADOWDOG_REMOTE_CACHE_READ === 'true'
+    : options.read
+
+  const writeCache = process.env.SHADOWDOG_REMOTE_CACHE_WRITE
+    ? process.env.SHADOWDOG_REMOTE_CACHE_WRITE === 'true'
+    : options.write
+
   const currentCache = computeCache([...files, ...invalidators.files], invalidators.environment)
 
-  const hasBeenRestored = await restoreCache(client, config, currentCache, options)
+  if (readCache) {
+    const hasBeenRestored = await restoreCache(client, config, currentCache, options)
 
-  if (hasBeenRestored) {
-    return abort()
+    if (hasBeenRestored) {
+      return abort()
+    }
   }
 
   await next()
 
-  return Promise.all(
-    config.artifacts.map(async (artifact) => {
-      if (!fs.existsSync(path.join(process.cwd(), artifact.output))) {
-        logMessage(
-          `🌐 Not able to store artifact '${chalk.blue(
-            artifact.output,
-          )}' in remote cache because is not present`,
-        )
-        return
-      }
+  if (writeCache) {
+    return Promise.all(
+      config.artifacts.map(async (artifact) => {
+        if (!fs.existsSync(path.join(process.cwd(), artifact.output))) {
+          logMessage(
+            `🌐 Not able to store artifact '${chalk.blue(
+              artifact.output,
+            )}' in remote cache because is not present`,
+          )
+          return
+        }
 
-      const cacheFileName = computeFileCacheName(currentCache, artifact.output)
-      const cacheFilePath = path.join(options.path, `${cacheFileName}.tar.gz`)
-      const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
+        const cacheFileName = computeFileCacheName(currentCache, artifact.output)
+        const cacheFilePath = path.join(options.path, `${cacheFileName}.tar.gz`)
+        const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
 
-      try {
-        const tarStream = tar.create(
-          {
-            gzip: false,
-            cwd: path.dirname(sourceCacheFilePath),
-            filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
-          },
-          [path.basename(sourceCacheFilePath)],
-        )
+        try {
+          const tarStream = tar.create(
+            {
+              gzip: false,
+              cwd: path.dirname(sourceCacheFilePath),
+              filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
+            },
+            [path.basename(sourceCacheFilePath)],
+          )
 
-        tarStream.on('error', (error) => {
+          tarStream.on('error', (error) => {
+            logError(error as Error)
+          })
+
+          const gzipStream = zlib.createGzip()
+
+          gzipStream.on('error', (error) => {
+            logError(error as Error)
+          })
+
+          const stream = tarStream.pipe(gzipStream)
+
+          stream.on('error', (error) => {
+            logError(error as Error)
+          })
+
+          logMessage(
+            `🌐 Storing artifact '${chalk.blue(
+              artifact.output,
+            )}' in remote cache with value '${chalk.green(cacheFileName)}'`,
+          )
+
+          await saveRemoteCache(client, options.bucketName, stream, cacheFilePath, artifact)
+        } catch (error: unknown) {
+          logMessage(
+            `🚫 An error ocurred while storing cache for artifact '${
+              artifact.output
+            }' with id '${chalk.green(cacheFileName)}`,
+          )
+
           logError(error as Error)
-        })
-
-        const gzipStream = zlib.createGzip()
-
-        gzipStream.on('error', (error) => {
-          logError(error as Error)
-        })
-
-        const stream = tarStream.pipe(gzipStream)
-
-        stream.on('error', (error) => {
-          logError(error as Error)
-        })
-
-        logMessage(
-          `🌐 Storing artifact '${chalk.blue(
-            artifact.output,
-          )}' in remote cache with value '${chalk.green(cacheFileName)}'`,
-        )
-
-        await saveRemoteCache(client, options.bucketName, stream, cacheFilePath, artifact)
-      } catch (error: unknown) {
-        logMessage(
-          `🚫 An error ocurred while storing cache for artifact '${
-            artifact.output
-          }' with id '${chalk.green(cacheFileName)}`,
-        )
-
-        logError(error as Error)
-      }
-    }),
-  ).catch((error) => {
-    logError(error)
-  })
+        }
+      }),
+    ).catch((error) => {
+      logError(error)
+    })
+  }
 }
 
 export default {
