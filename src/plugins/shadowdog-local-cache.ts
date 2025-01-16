@@ -9,7 +9,7 @@ import chalk from 'chalk'
 import { z } from 'zod'
 import { Middleware } from '.'
 import { CommandConfig } from '../config'
-import { logMessage, logError } from '../utils'
+import { logMessage, logError, readShadowdogVersion } from '../utils'
 
 type FilterFn = (file: string) => boolean
 
@@ -138,6 +138,8 @@ const computeCache = (files: string[], environment: string[]) => {
     .forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
 
   environment.forEach((env) => hash.update(process.env[env] ?? ''))
+
+  hash.update(readShadowdogVersion())
 
   return hash.digest('hex').slice(0, 10)
 }
