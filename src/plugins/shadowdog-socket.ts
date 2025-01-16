@@ -3,7 +3,6 @@ import { Listener } from '.'
 import * as net from 'net'
 import { logMessage } from '../utils'
 import chalk from 'chalk'
-import { ArtifactConfig } from '../config'
 
 type Event =
   | {
@@ -70,7 +69,7 @@ const listener: Listener<PluginOptions> = (shadowdogEventListener, options) => {
     notifyState(mergedOptions.path, {
       type: 'CHANGED_FILE',
       payload: {
-        file: payload.artifacts.map((artifact: ArtifactConfig) => artifact.output).join(', '),
+        file: payload.artifacts.map((artifact) => artifact.output).join(', '),
         ready: false,
       },
     })
@@ -80,7 +79,7 @@ const listener: Listener<PluginOptions> = (shadowdogEventListener, options) => {
     notifyState(mergedOptions.path, {
       type: 'CHANGED_FILE',
       payload: {
-        file: payload.artifacts.map((artifact: ArtifactConfig) => artifact.output).join(', '),
+        file: payload.artifacts.map((artifact) => artifact.output).join(', '),
         ready: true,
       },
     })
@@ -90,7 +89,7 @@ const listener: Listener<PluginOptions> = (shadowdogEventListener, options) => {
     notifyState(mergedOptions.path, {
       type: 'ERROR',
       payload: {
-        file: payload.artifacts.map((artifact: ArtifactConfig) => artifact.output).join(', '),
+        file: payload.artifacts.map((artifact) => artifact.output).join(', '),
         errorMessage: payload.errorMessage,
       },
     })
