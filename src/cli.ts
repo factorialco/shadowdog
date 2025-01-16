@@ -4,7 +4,8 @@ import pjson from '../package.json'
 import path from 'path'
 import { runDaemon } from './daemon'
 import { generate } from './generate'
-import { logError, logMessage } from './utils'
+import { logError, logMessage, readShadowdogVersion } from './utils'
+import chalk from 'chalk'
 
 const DEFAULT_CONFIG_FILENAME = 'shadowdog.json'
 
@@ -35,6 +36,8 @@ cli
     `,
       )
     }
+
+    logMessage(`🚀 Shadowdog ${chalk.blue(readShadowdogVersion())} is booting!`)
 
     try {
       await generate(path.relative(process.cwd(), config))
