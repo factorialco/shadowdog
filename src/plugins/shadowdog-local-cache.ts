@@ -211,7 +211,10 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
   if (writeCache) {
     return Promise.all(
       config.artifacts.map(async (artifact) => {
-        if (!fs.existsSync(path.join(process.cwd(), artifact.output))) {
+        const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
+        const exists = await fs.exists(sourceCacheFilePath)
+
+        if (!exists) {
           logMessage(
             `📦 Not able to store artifact '${chalk.blue(
               artifact.output,
@@ -229,8 +232,6 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
             cacheFileName,
           )}'`,
         )
-
-        const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
 
         try {
           await compressArtifact(sourceCacheFilePath, cacheFilePath, (filePath) =>

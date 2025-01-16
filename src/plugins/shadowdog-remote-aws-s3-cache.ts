@@ -89,30 +89,25 @@ const restoreRemoteCache = async (
   objectName: string,
   artifact: ArtifactConfig,
 ) => {
-  try {
-    const stream = await client.getObject(bucket, objectName)
-    const outputPath = path.join(process.cwd(), artifact.output, '..')
+  const stream = await client.getObject(bucket, objectName)
+  const outputPath = path.join(process.cwd(), artifact.output, '..')
 
-    fs.mkdirpSync(outputPath)
+  fs.mkdirpSync(outputPath)
 
-    stream.pipe(
+  return new Promise((resolve, reject) => {
+    const extractStream = stream.pipe(
       tar.extract({
         cwd: outputPath,
         filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
       }),
     )
-  } catch (error) {
-    logMessage(
-      `🌐 Not able to restore artifact '${chalk.blue(artifact.output)}' -> '${chalk.green(
-        objectName,
-      )}' in remote cache`,
-    )
-    logError(error as Error)
 
-    return false
-  }
+    extractStream.on('end', () => {
+      resolve(null)
+    })
 
-  return true
+    extractStream.on('error', reject)
+  })
 }
 
 const computeFileCacheName = (currentCache: string, fileName: string) => {
@@ -153,14 +148,9 @@ const restoreCache = async (
 
     const cacheFilePath = path.join(pluginOptions.path, `${cacheFileName}.tar.gz`)
 
-    const restored = await restoreRemoteCache(
-      client,
-      pluginOptions.bucketName,
-      cacheFilePath,
-      artifact,
-    )
+    try {
+      await restoreRemoteCache(client, pluginOptions.bucketName, cacheFilePath, artifact)
 
-    if (restored) {
       logMessage(
         `🌐 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
           cacheFileName,
@@ -168,13 +158,15 @@ const restoreCache = async (
       )
 
       return null
-    }
+    } catch (error) {
+      logMessage(
+        `🌐 Not able to reuse artifact '${chalk.blue(
+          artifact.output,
+        )}' from remote cache because of cache ${chalk.bgRed('MISS')}`,
+      )
 
-    logMessage(
-      `🌐 Not able to reuse artifact '${chalk.blue(
-        artifact.output,
-      )}' from remote cache because of cache ${chalk.bgRed('MISS')}`,
-    )
+      logError(error as Error)
+    }
 
     // If we can't reuse the artifact, we return it so it can be generated
     return artifact
