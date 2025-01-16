@@ -6,10 +6,10 @@ import * as tar from 'tar'
 import * as zlib from 'zlib'
 
 import chalk from 'chalk'
-import { z } from 'zod'
 import { Middleware } from '.'
 import { CommandConfig } from '../config'
 import { logMessage, logError, readShadowdogVersion } from '../utils'
+import { PluginConfig } from '../pluginTypes'
 
 type FilterFn = (file: string) => boolean
 
@@ -63,7 +63,7 @@ const decompressArtifact = (tarGzPath: string, outputPath: string, filter: Filte
 const restoreCache = async (
   commandConfig: CommandConfig,
   currentCache: string,
-  { path: cachePath }: PluginOptions,
+  { path: cachePath }: PluginConfig<'shadowdog-local-cache'>,
 ) => {
   // Check if we can reuse some artifacts from the cache
   const promisesToGenerate = commandConfig.artifacts.map(async (artifact) => {
@@ -169,11 +169,7 @@ const filterFn = (ignore: string[] | undefined, outputPath: string, filePath: st
   return keep
 }
 
-const pluginOptionsSchema = z.object({ path: z.string().default('/tmp/shadowdog/cache') }).strict()
-
-type PluginOptions = z.infer<typeof pluginOptionsSchema>
-
-const middleware: Middleware<PluginOptions> = async ({
+const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
   files,
   invalidators,
   config,
@@ -185,15 +181,13 @@ const middleware: Middleware<PluginOptions> = async ({
     return next()
   }
 
-  const mergedOptions = pluginOptionsSchema.parse(options)
-
-  mergedOptions.path = process.env.SHADOWDOG_LOCAL_CACHE_PATH ?? mergedOptions.path
+  const cachePath = process.env.SHADOWDOG_LOCAL_CACHE_PATH ?? options.path
 
   const currentCache = computeCache([...files, ...invalidators.files], invalidators.environment)
 
-  fs.mkdirpSync(mergedOptions.path)
+  fs.mkdirpSync(cachePath)
 
-  const hasBeenRestored = await restoreCache(config, currentCache, mergedOptions)
+  const hasBeenRestored = await restoreCache(config, currentCache, { path: cachePath })
 
   if (hasBeenRestored) {
     return abort()
@@ -214,7 +208,7 @@ const middleware: Middleware<PluginOptions> = async ({
 
       const cacheFileName = computeFileCacheName(currentCache, artifact.output)
 
-      const cacheFilePath = path.join(mergedOptions.path, `${cacheFileName}.tar.gz`)
+      const cacheFilePath = path.join(cachePath, `${cacheFileName}.tar.gz`)
 
       logMessage(
         `📦 Storing artifact '${chalk.blue(artifact.output)}' in cache with value '${chalk.green(

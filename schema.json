@@ -22,24 +22,141 @@
     "plugins": {
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "enum": [
-              "shadowdog-rake",
-              "shadowdog-local-cache",
-              "shadowdog-remote-aws-s3-cache",
-              "shadowdog-tag",
-              "shadowdog-tree",
-              "shadowdog-socket",
-              "shadowdog-git"
-            ]
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-rake"
+              },
+              "options": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
           },
-          "options": {}
-        },
-        "required": ["name"],
-        "additionalProperties": false
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-local-cache"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "default": "/tmp/shadowdog/cache"
+                  }
+                },
+                "additionalProperties": false,
+                "default": {}
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-remote-aws-s3-cache"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "default": "shadowdog/cache"
+                  },
+                  "bucketName": {
+                    "type": "string"
+                  }
+                },
+                "required": ["bucketName"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["name", "options"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-tag"
+              },
+              "options": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-tree"
+              },
+              "options": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-socket"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "default": "/tmp/shadowdog/socket"
+                  }
+                },
+                "additionalProperties": false,
+                "default": {}
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-git"
+              },
+              "options": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          }
+        ]
       },
       "default": [],
       "description": "List of plugins to use"
