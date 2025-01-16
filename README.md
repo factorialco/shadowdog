@@ -84,23 +84,60 @@ Enhance Shadowdog with these powerful plugins:
 - **`shadowdog-local-cache`**  
   Implements a local caching mechanism to speed up repeated artifact generation.
 
+  Environment variables:
+
+  - `SHADOWDOG_DISABLE_LOCAL_CACHE`: When `true`, disables local cache completely
+  - `SHADOWDOG_LOCAL_CACHE_READ`: When set, overrides the plugin's read cache configuration (`true`/`false`)
+  - `SHADOWDOG_LOCAL_CACHE_WRITE`: When set, overrides the plugin's write cache configuration (`true`/`false`)
+  - `SHADOWDOG_LOCAL_CACHE_PATH`: When set, overrides the plugin's cache directory path
+
 - **`shadowdog-remote-aws-s3-cache`**  
   Enables remote caching with AWS S3 for distributed workflows.
+
+  Environment variables:
+
+  - `SHADOWDOG_DISABLE_REMOTE_CACHE`: When `true`, disables remote cache completely
+  - `SHADOWDOG_REMOTE_CACHE_READ`: When set, overrides the plugin's read cache configuration (`true`/`false`)
+  - `SHADOWDOG_REMOTE_CACHE_WRITE`: When set, overrides the plugin's write cache configuration (`true`/`false`)
+  - `AWS_PROFILE`: AWS profile to use for authentication (optional)
+  - `AWS_ACCESS_KEY_ID`: AWS access key ID (required if AWS_PROFILE not set)
+  - `AWS_SECRET_ACCESS_KEY`: AWS secret access key (required if AWS_PROFILE not set)
+  - `AWS_REGION`: AWS region (required if AWS_PROFILE not set)
 
 - **`shadowdog-tag`**  
   Adds tagging capabilities to filter specific commands.
 
-- **`shadowdog-git`**
+  Environment variables:
+
+  - `SHADOWDOG_TAG`: When set, only runs commands with matching tag
+
+- **`shadowdog-git`**  
   Handles git rebases and merges smoothly pausing the watcher and resuming it after the rebase is done.
+
+  Internal configuration:
+
+  - Checks for rebase every 2000ms (INTERVAL_TIME)
+  - Uses `.git/rebase-merge` to detect rebase state
 
 - **`shadowdog-socket`**  
   Provides an external communication channel for interacting with Shadowdog.
 
+  No configurable environment variables. Uses socket events:
+
+  - `CHANGED_FILE`: Emitted when a file changes
+  - `ERROR`: Emitted on errors
+  - `INITIALIZED`: Emitted on startup
+  - `CLEAR`: Emitted on cleanup
+
 - **`shadowdog-tree`**  
   Generate a dependency tree structure between commands to run different commands that depend on each other.
 
+  No configurable environment variables. Uses internal dependency graph algorithm.
+
 - **`shadowdog-rake`**  
-  Optimize multiple `bundle exec rake` commmands into a single command.
+  Optimize multiple `bundle exec rake` commands into a single command.
+
+  No configurable environment variables. Automatically detects and combines rake tasks.
 
 ### Using plugins
 
