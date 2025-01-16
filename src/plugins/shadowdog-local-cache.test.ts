@@ -2,6 +2,16 @@ import fs from 'fs-extra'
 import { describe, it, beforeEach, afterEach, vi, expect, afterAll } from 'vitest'
 import shadowdogLocalCache, { compressArtifact } from './shadowdog-local-cache'
 
+vi.mock('../utils', async () => {
+  const utils = await vi.importActual('../utils')
+
+  return {
+    ...utils,
+
+    readShadowdogVersion: vi.fn(() => ''),
+  }
+})
+
 describe('shadowdog local cache', () => {
   const next = vi.fn(() => fs.writeFile('tmp/tests/artifacts/foo', 'foo'))
 

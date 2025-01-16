@@ -11,7 +11,7 @@ import { z } from 'zod'
 
 import { ArtifactConfig } from '../config'
 import { CommandConfig } from '../config'
-import { logError, logMessage } from '../utils'
+import { logError, logMessage, readShadowdogVersion } from '../utils'
 import { Middleware } from '.'
 
 const createClient = () => {
@@ -120,6 +120,7 @@ const computeFileCacheName = (currentCache: string, fileName: string) => {
 
   hash.update(currentCache)
   hash.update(fileName)
+  hash.update(readShadowdogVersion())
 
   return hash.digest('hex').slice(0, 10)
 }

@@ -5,7 +5,7 @@ import path from 'path'
 
 import { ConfigFile, loadConfig } from './config'
 import { runTask } from './tasks'
-import { chalkFiles, logMessage } from './utils'
+import { chalkFiles, logMessage, readShadowdogVersion } from './utils'
 import chalk from 'chalk'
 
 import { TaskRunner } from './task-runner'
@@ -154,7 +154,7 @@ export const runDaemon = async (configFilePath: string) => {
 
   await setupWatchers(currentConfig, eventEmitter)
 
-  logMessage('🚀 Shadowdog is ready to watch your files!')
+  logMessage(`🚀 Shadowdog ${chalk.blue(readShadowdogVersion())} is ready to watch your files!`)
 
   eventEmitter.emit('initialized')
 
