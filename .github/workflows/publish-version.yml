@@ -49,3 +49,9 @@ jobs:
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Print summary
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "Published version ${VERSION} to NPM" >> $GITHUB_STEP_SUMMARY
+          echo "Package: https://www.npmjs.com/package/@factorialco/shadowdog/v/${VERSION}" >> $GITHUB_STEP_SUMMARY
