@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -38,7 +40,9 @@ jobs:
         run: npm version ${{ inputs.bump_type }}
 
       - name: Push changes
-        run: git push --follow-tags
+        run: |
+          git remote set-url origin git@github.com:${{ github.repository }}.git
+          git push --follow-tags
 
       - name: Publish to NPM
         run: npm publish
