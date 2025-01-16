@@ -37,11 +37,8 @@ jobs:
       - name: Bump version
         run: npm version ${{ inputs.bump_type }}
 
-      - name: Commit changes
-        run: git commit -m "Bump version to ${{ inputs.bump_type }}"
-
       - name: Push changes
-        run: git push
+        run: git push --follow-tags
 
       - name: Publish to NPM
         run: npm publish
