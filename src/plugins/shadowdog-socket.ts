@@ -3,6 +3,7 @@ import { Listener } from '.'
 import { logMessage } from '../utils'
 import chalk from 'chalk'
 import { PluginConfig } from '../pluginTypes'
+import { existsSync } from 'fs'
 
 type Event =
   | {
@@ -26,7 +27,19 @@ type Event =
       type: 'CLEAR'
     }
 
+let brokenSocketNotified: boolean = false
+
 const notifyState = (socketPath: string, event: Event) => {
+  if (!existsSync(socketPath)) {
+    if (!brokenSocketNotified) {
+      brokenSocketNotified = true
+
+      logMessage(`🚫 Socket file at ${chalk.blue(socketPath)} does not exist`)
+    }
+
+    return Promise.resolve()
+  }
+
   return new Promise<void>((resolve) => {
     const socket = new net.Socket()
 
