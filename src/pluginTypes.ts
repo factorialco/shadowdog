@@ -28,6 +28,10 @@ export const pluginOptionsSchema = z.discriminatedUnion('name', [
     options: z.object({ path: z.string().default('/tmp/shadowdog/socket') }).default({}),
   }),
   z.object({ name: z.literal('shadowdog-git'), options: z.object({}).optional() }),
+  z.object({
+    name: z.literal('shadowdog-lock'),
+    options: z.object({ path: z.string().default('/tmp/shadowdog/lock') }).default({}),
+  }),
 ])
 
 export type PluginConfig<T extends z.infer<typeof pluginOptionsSchema>['name']> = Extract<
@@ -43,4 +47,5 @@ export const PluginNameEnum = z.enum([
   'shadowdog-tree',
   'shadowdog-socket',
   'shadowdog-git',
+  'shadowdog-lock',
 ])

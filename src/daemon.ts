@@ -176,6 +176,7 @@ export const runDaemon = async (configFilePath: string) => {
     }
   }
 
+  process.on('beforeExit', shutdown)
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)
 }
