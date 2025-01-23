@@ -171,6 +171,28 @@
             },
             "required": ["name"],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-lock"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "default": "/tmp/shadowdog/lock"
+                  }
+                },
+                "additionalProperties": false,
+                "default": {}
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
           }
         ]
       },

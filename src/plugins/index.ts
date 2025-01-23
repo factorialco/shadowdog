@@ -11,6 +11,8 @@ import shadowdogRemoteAwsS3Cache from './shadowdog-remote-aws-s3-cache'
 import shadowdogTree from './shadowdog-tree'
 import shadowdogSocket from './shadowdog-socket'
 import shadowdogGit from './shadowdog-git'
+import shadowdogLock from './shadowdog-lock'
+
 import { ShadowdogEventEmitter } from '../events'
 
 export type Listener<Options = unknown> = (
@@ -54,6 +56,11 @@ type PluginsMap = {
     >
   }
   'shadowdog-git': { middleware: Middleware }
+  'shadowdog-lock': {
+    middleware: Middleware<
+      Extract<z.infer<typeof pluginOptionsSchema>, { name: 'shadowdog-lock' }>['options']
+    >
+  }
 }
 
 const PLUGINS_MAP = {
@@ -64,6 +71,7 @@ const PLUGINS_MAP = {
   'shadowdog-tree': shadowdogTree,
   'shadowdog-socket': shadowdogSocket,
   'shadowdog-git': shadowdogGit,
+  'shadowdog-lock': shadowdogLock,
 } as const satisfies PluginsMap
 
 const filterUsedPlugins = (config: PluginsConfig) =>

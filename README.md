@@ -81,7 +81,7 @@ Shadowdog provides a variety of commands to simplify your workflows:
 
 Enhance Shadowdog with these powerful plugins:
 
-- **`shadowdog-local-cache`**  
+- **`shadowdog-local-cache`**
   Implements a local caching mechanism to speed up repeated artifact generation.
 
   Environment variables:
@@ -91,7 +91,7 @@ Enhance Shadowdog with these powerful plugins:
   - `SHADOWDOG_LOCAL_CACHE_WRITE`: When set, overrides the plugin's write cache configuration (`true`/`false`)
   - `SHADOWDOG_LOCAL_CACHE_PATH`: When set, overrides the plugin's cache directory path
 
-- **`shadowdog-remote-aws-s3-cache`**  
+- **`shadowdog-remote-aws-s3-cache`**
   Enables remote caching with AWS S3 for distributed workflows.
 
   Environment variables:
@@ -104,14 +104,17 @@ Enhance Shadowdog with these powerful plugins:
   - `AWS_SECRET_ACCESS_KEY`: AWS secret access key (required if AWS_PROFILE not set)
   - `AWS_REGION`: AWS region (required if AWS_PROFILE not set)
 
-- **`shadowdog-tag`**  
+- **`shadowdog-tag`**
   Adds tagging capabilities to filter specific commands.
 
   Environment variables:
 
   - `SHADOWDOG_TAG`: When set, only runs commands with matching tag
 
-- **`shadowdog-git`**  
+- **`shadowdog-lock`**
+  Prevents multiple instances of Shadowdog from running simultaneously by implementing file-based locking.
+
+- **`shadowdog-git`**
   Handles git rebases and merges smoothly pausing the watcher and resuming it after the rebase is done.
 
   Internal configuration:
@@ -119,7 +122,7 @@ Enhance Shadowdog with these powerful plugins:
   - Checks for rebase every 2000ms (INTERVAL_TIME)
   - Uses `.git/rebase-merge` to detect rebase state
 
-- **`shadowdog-socket`**  
+- **`shadowdog-socket`**
   Provides an external communication channel for interacting with Shadowdog.
 
   No configurable environment variables. Uses socket events:
@@ -129,12 +132,12 @@ Enhance Shadowdog with these powerful plugins:
   - `INITIALIZED`: Emitted on startup
   - `CLEAR`: Emitted on cleanup
 
-- **`shadowdog-tree`**  
+- **`shadowdog-tree`**
   Generate a dependency tree structure between commands to run different commands that depend on each other.
 
   No configurable environment variables. Uses internal dependency graph algorithm.
 
-- **`shadowdog-rake`**  
+- **`shadowdog-rake`**
   Optimize multiple `bundle exec rake` commands into a single command.
 
   No configurable environment variables. Automatically detects and combines rake tasks.
