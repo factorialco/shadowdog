@@ -2,9 +2,11 @@ import fs from 'fs-extra'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import shadowdogGit from './shadowdog-git'
 import process from 'process'
+import { ShadowdogEventEmitter } from '../events'
 
 describe('shadowdog git', () => {
   const next = vi.fn()
+  const eventEmitter = new ShadowdogEventEmitter()
 
   beforeEach(() => {
     fs.mkdirpSync('tmp/.git')
@@ -34,6 +36,7 @@ describe('shadowdog git', () => {
         abort: () => {},
         options: {},
         changedFilePath: 'README.md',
+        eventEmitter,
       })
       expect(next).not.toHaveBeenCalled()
     })

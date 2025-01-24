@@ -1,13 +1,28 @@
-import * as fs from 'fs'
+import * as fs from 'fs-extra'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ShadowdogEventEmitter } from '../events'
 
-vi.mock('fs')
+vi.mock('fs-extra', () => ({
+  default: {
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    unlinkSync: vi.fn(),
+    mkdirpSync: vi.fn(),
+  },
+  existsSync: vi.fn(),
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  unlinkSync: vi.fn(),
+  mkdirpSync: vi.fn(),
+}))
 
 describe('shadowdog-lock', () => {
   const mockFs = vi.mocked(fs)
+  const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
   const lockPath = '/tmp/shadowdog/lock'
   const options = { path: lockPath }
+  const eventEmitter = new ShadowdogEventEmitter()
   let shadowdogLock: typeof import('./shadowdog-lock').default
 
   beforeEach(async () => {
@@ -31,9 +46,10 @@ describe('shadowdog-lock', () => {
         files: [],
         invalidators: { files: [], environment: [] },
         config: { command: '', workingDirectory: '', tags: [], artifacts: [] },
+        eventEmitter,
       })
 
-      expect(abort).toHaveBeenCalled()
+      expect(mockExit).toHaveBeenCalledWith(1)
       expect(next).not.toHaveBeenCalled()
     })
 
@@ -51,6 +67,7 @@ describe('shadowdog-lock', () => {
         files: [],
         invalidators: { files: [], environment: [] },
         config: { command: '', workingDirectory: '', tags: [], artifacts: [] },
+        eventEmitter,
       })
 
       expect(abort).not.toHaveBeenCalled()
@@ -70,6 +87,7 @@ describe('shadowdog-lock', () => {
         files: [],
         invalidators: { files: [], environment: [] },
         config: { command: '', workingDirectory: '', tags: [], artifacts: [] },
+        eventEmitter,
       })
 
       expect(abort).not.toHaveBeenCalled()
@@ -78,12 +96,6 @@ describe('shadowdog-lock', () => {
   })
 
   describe('listener', () => {
-    let eventEmitter: ShadowdogEventEmitter
-
-    beforeEach(() => {
-      eventEmitter = new ShadowdogEventEmitter()
-    })
-
     it('should create lock file on begin event if it does not exist', () => {
       mockFs.existsSync.mockReturnValue(false)
       shadowdogLock.listener(eventEmitter, options)
@@ -138,10 +150,7 @@ describe('shadowdog-lock', () => {
   })
 
   describe('shadowdog-lock error handling', () => {
-    let eventEmitter: ShadowdogEventEmitter
-
     beforeEach(() => {
-      eventEmitter = new ShadowdogEventEmitter()
       shadowdogLock.listener(eventEmitter, options)
     })
 

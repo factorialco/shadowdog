@@ -30,7 +30,7 @@ export type Middleware<Options = unknown> = (control: {
   next: () => Promise<unknown>
   abort: () => void
   changedFilePath?: string
-  eventEmitter?: ShadowdogEventEmitter
+  eventEmitter: ShadowdogEventEmitter
 }) => Promise<unknown>
 
 type PluginsMap = {

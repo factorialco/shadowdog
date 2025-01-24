@@ -6,7 +6,7 @@ interface Options {
   files: string[]
   invalidators: InvalidatorConfig
   config: CommandConfig
-  eventEmitter?: ShadowdogEventEmitter
+  eventEmitter: ShadowdogEventEmitter
   changedFilePath?: string
 }
 export class TaskRunner {

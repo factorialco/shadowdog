@@ -1,6 +1,7 @@
 import fs from 'fs-extra'
 import { describe, it, beforeEach, afterEach, vi, expect, afterAll } from 'vitest'
 import shadowdogLocalCache, { compressArtifact } from './shadowdog-local-cache'
+import { ShadowdogEventEmitter } from '../events'
 
 vi.mock('../utils', async () => {
   const utils = await vi.importActual('../utils')
@@ -14,6 +15,7 @@ vi.mock('../utils', async () => {
 
 describe('shadowdog local cache', () => {
   const next = vi.fn(() => fs.writeFile('tmp/tests/artifacts/foo', 'foo'))
+  const eventEmitter = new ShadowdogEventEmitter()
 
   beforeEach(() => {
     fs.mkdirpSync('tmp/tests/cache')
@@ -50,6 +52,7 @@ describe('shadowdog local cache', () => {
           read: true,
           write: true,
         },
+        eventEmitter,
       })
       expect(next).toHaveBeenCalled()
     })
@@ -87,6 +90,7 @@ describe('shadowdog local cache', () => {
             read: true,
             write: true,
           },
+          eventEmitter,
         })
         expect(next).not.toHaveBeenCalled()
         expect(fs.readFileSync('tmp/tests/artifacts/foo', 'utf8')).toBe('foo')
@@ -126,6 +130,7 @@ describe('shadowdog local cache', () => {
             read: true,
             write: true,
           },
+          eventEmitter,
         })
         expect(next).not.toHaveBeenCalled()
         expect(fs.readFileSync('tmp/tests/artifacts/foo', 'utf8')).toBe('foo')
@@ -168,6 +173,7 @@ describe('shadowdog local cache', () => {
           read: true,
           write: true,
         },
+        eventEmitter,
       })
       expect(fs.existsSync('tmp/tests/cache/0adeca2ac6.tar.gz')).toBe(false)
       expect(fs.existsSync('tmp/tests/cache_overriden/0adeca2ac6.tar.gz')).toBe(true)

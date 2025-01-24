@@ -2,6 +2,9 @@
   "$schema": "schema.json",
   "plugins": [
     {
+      "name": "shadowdog-lock"
+    },
+    {
       "name": "shadowdog-local-cache"
     }
   ],
