@@ -115,7 +115,10 @@ const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) 
             resolve(watcher)
           }
 
-          watcher.on('change', debounce(onFileChange, config.debounceTime))
+          const debouncedOnFileChange = debounce(onFileChange, config.debounceTime)
+
+          watcher.on('add', debouncedOnFileChange)
+          watcher.on('change', debouncedOnFileChange)
           watcher.on('ready', onReady)
           watcher.on('error', reject)
         })
