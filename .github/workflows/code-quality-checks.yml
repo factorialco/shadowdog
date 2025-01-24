@@ -32,4 +32,6 @@ jobs:
         run: npm test
 
       - name: Generate (forgot to update src/config/schema.json)
+        env:
+          DEBUG: ${{ runner.debug }}
         run: npm run generate && git diff --exit-code

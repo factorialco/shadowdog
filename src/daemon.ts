@@ -3,14 +3,14 @@ import * as chokidar from 'chokidar'
 import debounce from 'lodash/debounce'
 import path from 'path'
 
+import chalk from 'chalk'
 import { ConfigFile, loadConfig } from './config'
 import { runTask } from './tasks'
-import { chalkFiles, logMessage, readShadowdogVersion } from './utils'
-import chalk from 'chalk'
+import { chalkFiles, exit, logMessage, readShadowdogVersion } from './utils'
 
-import { TaskRunner } from './task-runner'
-import { filterEventListenerPlugins, filterMiddlewarePlugins } from './plugins'
 import { ShadowdogEventEmitter } from './events'
+import { filterMiddlewarePlugins } from './plugins'
+import { TaskRunner } from './task-runner'
 
 const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) => {
   return Promise.all<chokidar.FSWatcher>(
@@ -86,6 +86,9 @@ const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) 
                     onSpawn: (task) => {
                       tasks.push(task)
                     },
+                    onExit: (task) => {
+                      tasks = tasks.filter((pendingTask) => pendingTask.pid !== task.pid)
+                    },
                   })
                 })
 
@@ -126,15 +129,13 @@ const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) 
   )
 }
 
-export const runDaemon = async (configFilePath: string) => {
-  const eventEmitter = new ShadowdogEventEmitter()
-
-  let currentWatchers: chokidar.FSWatcher[] = []
-  let currentConfig = loadConfig(configFilePath)
-
-  filterEventListenerPlugins(currentConfig.plugins).forEach(({ fn, options }) => {
-    fn.listener(eventEmitter, options ?? {})
-  })
+export const runDaemon = async (
+  config: ConfigFile,
+  configFilePath: string,
+  eventEmitter: ShadowdogEventEmitter,
+) => {
+  let currentConfig = config
+  let currentWatchers: chokidar.FSWatcher[] = await setupWatchers(currentConfig, eventEmitter)
 
   const configWatcher = chokidar.watch(configFilePath, {
     ignoreInitial: true,
@@ -155,8 +156,6 @@ export const runDaemon = async (configFilePath: string) => {
     }, currentConfig.debounceTime),
   )
 
-  await setupWatchers(currentConfig, eventEmitter)
-
   logMessage(`🚀 Shadowdog ${chalk.blue(readShadowdogVersion())} is ready to watch your files!`)
 
   eventEmitter.emit('initialized')
@@ -165,18 +164,7 @@ export const runDaemon = async (configFilePath: string) => {
   const shutdown = async () => {
     if (isShuttingDown) return
     isShuttingDown = true
-
-    try {
-      logMessage('👋 Shutting down Shadowdog...')
-      // emit exit event and wait for all listeners to complete
-      await Promise.all(eventEmitter.listeners('exit').map((listener) => listener()))
-      eventEmitter.removeAllListeners('exit')
-      logMessage('✨ Shutdown complete')
-      process.exit(0)
-    } catch (error) {
-      logMessage(`🚨 Error during shutdown: ${(error as Error).message}`)
-      process.exit(1)
-    }
+    return exit(eventEmitter, 0)
   }
 
   process.on('beforeExit', shutdown)

@@ -1,29 +1,29 @@
-import * as fs from 'fs'
+import * as fs from 'fs-extra'
 
 import chalk from 'chalk'
 import { Listener, Middleware } from '.'
 import { PluginConfig } from '../pluginTypes'
-import { logMessage } from '../utils'
-import debounce from 'lodash/debounce'
+import { logMessage, exit } from '../utils'
+import path from 'path'
 
-const lockExists = (path: string) => {
-  return fs.existsSync(path)
+const lockExists = (lockFile: string) => {
+  return fs.existsSync(lockFile)
 }
 
-const isLockOwner = (path: string) => {
-  return fs.readFileSync(path, 'utf-8') === process.pid.toString()
+const isLockOwner = (lockFile: string) => {
+  return fs.readFileSync(lockFile, 'utf-8') === process.pid.toString()
 }
 
-const reportLock = debounce((path: string) => {
-  logMessage(`🔒 Lock file ${chalk.blue(path)} exists. Aborting...`)
-}, 500)
-
-const middleware: Middleware<PluginConfig<'shadowdog-lock'>> = async ({ next, abort, options }) => {
+const middleware: Middleware<PluginConfig<'shadowdog-lock'>> = async ({
+  eventEmitter,
+  next,
+  options,
+}) => {
   const lockFile = options.path
 
   if (lockExists(lockFile) && !isLockOwner(lockFile)) {
-    reportLock(lockFile)
-    return abort()
+    logMessage(`🔒 Lock file ${chalk.blue(lockFile)} exists. Aborting...`)
+    return exit(eventEmitter, 1)
   }
 
   return next()
@@ -50,6 +50,7 @@ const listener: Listener<PluginConfig<'shadowdog-lock'>> = (eventEmitter, option
 
   eventEmitter.on('begin', () => {
     if (!lockExists(lockFile)) {
+      fs.mkdirpSync(path.dirname(lockFile))
       fs.writeFileSync(lockFile, process.pid.toString())
     }
 

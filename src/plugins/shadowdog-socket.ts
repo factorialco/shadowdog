@@ -34,7 +34,9 @@ const notifyState = (socketPath: string, event: Event) => {
     if (!brokenSocketNotified) {
       brokenSocketNotified = true
 
-      logMessage(`🚫 Socket file at ${chalk.blue(socketPath)} does not exist`)
+      logMessage(
+        `⚠️ Socket file at ${chalk.blue(socketPath)} does not exist. Shadowdog will not be able to notify the state of the build.`,
+      )
     }
 
     return Promise.resolve()

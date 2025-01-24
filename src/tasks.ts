@@ -6,10 +6,17 @@ interface Options {
   command: string
   workingDirectory: string
   changedFilePath?: string
-  onSpawn?: (task: childProcess.ChildProcess) => void
+  onSpawn: (task: childProcess.ChildProcess) => void
+  onExit: (task: childProcess.ChildProcess) => void
 }
 
-export const runTask = ({ command, workingDirectory, changedFilePath, onSpawn }: Options) => {
+export const runTask = ({
+  command,
+  workingDirectory,
+  changedFilePath,
+  onSpawn,
+  onExit,
+}: Options) => {
   return new Promise<void>((resolve, reject) => {
     const fullCommand = changedFilePath ? command.replace('$FILE', changedFilePath) : command
     let errorMessage = ''
@@ -24,9 +31,7 @@ export const runTask = ({ command, workingDirectory, changedFilePath, onSpawn }:
 
     logMessage(`🏭️ Running command (PID: ${chalk.magenta(task.pid)}) '${chalk.blue(command)}'`)
 
-    if (onSpawn) {
-      onSpawn(task)
-    }
+    onSpawn(task)
 
     task.stderr.on('data', (data) => (errorMessage += data.toString()))
 
@@ -40,6 +45,8 @@ export const runTask = ({ command, workingDirectory, changedFilePath, onSpawn }:
           )}' has exited successfully ${chalk.cyan(`(${seconds}s)`)}`,
         )
 
+        onExit(task)
+
         return resolve()
       }
 
@@ -50,6 +57,8 @@ export const runTask = ({ command, workingDirectory, changedFilePath, onSpawn }:
       if (errorMessage) {
         logMessage(errorMessage)
       }
+
+      onExit(task)
 
       return reject(new Error(errorMessage))
     })

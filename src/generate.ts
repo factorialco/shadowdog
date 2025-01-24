@@ -1,15 +1,10 @@
 import path from 'path'
 
-import { CommandConfig, InvalidatorConfig, loadConfig, PluginsConfig } from './config'
-import {
-  filterCommandPlugins,
-  filterEventListenerPlugins,
-  filterMiddlewarePlugins,
-} from './plugins'
+import { CommandConfig, ConfigFile, InvalidatorConfig, PluginsConfig } from './config'
+import { ShadowdogEventEmitter } from './events'
+import { filterCommandPlugins, filterMiddlewarePlugins } from './plugins'
 import { TaskRunner } from './task-runner'
 import { runTask } from './tasks'
-import { logMessage } from './utils'
-import { ShadowdogEventEmitter } from './events'
 
 export type Task = ParallelTask | SerialTask | CommandTask | EmptyTask
 
@@ -60,6 +55,7 @@ const processTask = async (
         files: task.files,
         invalidators: task.invalidators,
         config: task.config,
+        eventEmitter,
       })
 
       filterMiddlewarePlugins(pluginsConfig).forEach(({ fn, options }) => {
@@ -70,6 +66,8 @@ const processTask = async (
         return runTask({
           command: task.config.command,
           workingDirectory: path.join(process.cwd(), task.config.workingDirectory),
+          onSpawn: () => {},
+          onExit: () => {},
         })
       })
 
@@ -94,38 +92,7 @@ const processTask = async (
   }
 }
 
-export const generate = async (configFilePath: string) => {
-  const config = loadConfig(configFilePath)
-  const eventEmitter = new ShadowdogEventEmitter()
-
-  filterEventListenerPlugins(config.plugins).forEach(({ fn, options }) => {
-    fn.listener(eventEmitter, options ?? {})
-  })
-
-  eventEmitter.emit('initialized')
-
-  let isShuttingDown = false
-  const shutdown = async () => {
-    if (isShuttingDown) return
-    isShuttingDown = true
-
-    try {
-      logMessage('👋 Shutting down Shadowdog...')
-      // emit exit event and wait for all listeners to complete
-      await Promise.all(eventEmitter.listeners('exit').map((listener) => listener()))
-      eventEmitter.removeAllListeners('exit')
-      logMessage('✨ Shutdown complete')
-      process.exit(0)
-    } catch (error) {
-      logMessage(`🚨 Error during shutdown: ${(error as Error).message}`)
-      process.exit(1)
-    }
-  }
-
-  process.on('beforeExit', shutdown)
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
-
+export const generate = async (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) => {
   const plugins = filterCommandPlugins(config.plugins)
 
   const task: Task = {
