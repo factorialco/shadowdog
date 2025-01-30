@@ -82,6 +82,7 @@ const processTask = async (
           artifacts: task.config.artifacts,
           errorMessage: (error as Error).message,
         })
+        throw error
       }
 
       break
