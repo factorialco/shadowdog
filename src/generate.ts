@@ -29,20 +29,25 @@ export interface EmptyTask {
   type: 'empty'
 }
 
+interface GenerateOptions {
+  continueOnError: boolean
+}
+
 const processTask = async (
   task: Task,
   pluginsConfig: PluginsConfig,
   eventEmitter: ShadowdogEventEmitter,
+  options: GenerateOptions,
 ): Promise<unknown> => {
   switch (task.type) {
     case 'parallel': {
       return Promise.all(
-        task.tasks.map((subTask) => processTask(subTask, pluginsConfig, eventEmitter)),
+        task.tasks.map((subTask) => processTask(subTask, pluginsConfig, eventEmitter, options)),
       )
     }
     case 'serial': {
       for (const subTask of task.tasks) {
-        await processTask(subTask, pluginsConfig, eventEmitter)
+        await processTask(subTask, pluginsConfig, eventEmitter, options)
       }
       return
     }
@@ -58,8 +63,8 @@ const processTask = async (
         eventEmitter,
       })
 
-      filterMiddlewarePlugins(pluginsConfig).forEach(({ fn, options }) => {
-        taskRunner.use(fn.middleware, options)
+      filterMiddlewarePlugins(pluginsConfig).forEach(({ fn, options: pluginOptions }) => {
+        taskRunner.use(fn.middleware, pluginOptions)
       })
 
       taskRunner.use(() => {
@@ -82,7 +87,10 @@ const processTask = async (
           artifacts: task.config.artifacts,
           errorMessage: (error as Error).message,
         })
-        throw error
+
+        if (!options.continueOnError) {
+          throw error
+        }
       }
 
       break
@@ -93,7 +101,11 @@ const processTask = async (
   }
 }
 
-export const generate = async (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) => {
+export const generate = async (
+  config: ConfigFile,
+  eventEmitter: ShadowdogEventEmitter,
+  options: GenerateOptions,
+) => {
   const plugins = filterCommandPlugins(config.plugins)
 
   const task: Task = {
@@ -110,5 +122,5 @@ export const generate = async (config: ConfigFile, eventEmitter: ShadowdogEventE
 
   const finalTask = plugins.reduce<Task>((subTask, { fn }) => fn.command(subTask), task)
 
-  return processTask(finalTask, config.plugins, eventEmitter)
+  return processTask(finalTask, config.plugins, eventEmitter, options)
 }

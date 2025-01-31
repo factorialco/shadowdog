@@ -52,7 +52,7 @@ cli
     })
 
     try {
-      await generate(config, eventEmitter)
+      await generate(config, eventEmitter, { continueOnError: watch })
     } catch (error: unknown) {
       logMessage(`🚫 Unable to perform the initial generation because some command has failed.`)
       logError(error as Error)
