@@ -1,18 +1,15 @@
-import * as crypto from 'crypto'
-import * as glob from 'glob'
-import * as minio from 'minio'
-import * as zlib from 'zlib'
-import * as tar from 'tar'
-import fs from 'fs-extra'
 import chalk from 'chalk'
-import path from 'path'
 import { execSync } from 'child_process'
+import fs from 'fs-extra'
+import * as minio from 'minio'
+import path from 'path'
+import * as tar from 'tar'
+import * as zlib from 'zlib'
 
-import { ArtifactConfig } from '../config'
-import { CommandConfig } from '../config'
-import { logError, logMessage, readShadowdogVersion } from '../utils'
 import { Middleware } from '.'
+import { ArtifactConfig, CommandConfig } from '../config'
 import { PluginConfig } from '../pluginTypes'
+import { computeCache, computeFileCacheName, logError, logMessage } from '../utils'
 
 const createClient = () => {
   const { AWS_PROFILE } = process.env
@@ -65,8 +62,7 @@ const saveRemoteCache = async (
   try {
     await client.putObject(bucket, objectName, stream, stream.readableLength, {
       output: artifact.output,
-      // TODO: review this
-      committer: process.env.GIT_COMMITTER_NAME ?? '',
+      extra: process.env.SHADOWDOG_REMOTE_CACHE_EXTRA ?? '',
     })
   } catch (error) {
     logMessage(
@@ -110,16 +106,6 @@ const restoreRemoteCache = async (
   })
 }
 
-const computeFileCacheName = (currentCache: string, fileName: string) => {
-  const hash = crypto.createHmac('sha1', '')
-
-  hash.update(currentCache)
-  hash.update(fileName)
-  hash.update(readShadowdogVersion())
-
-  return hash.digest('hex').slice(0, 10)
-}
-
 const filterFn = (ignore: string[] | undefined, outputPath: string, filePath: string) => {
   if (!ignore) {
     return true
@@ -160,8 +146,8 @@ const restoreCache = async (
       return null
     } catch (error) {
       logMessage(
-        `🌐 Not able to reuse artifact '${chalk.blue(
-          artifact.output,
+        `🌐 Not able to reuse artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+          cacheFileName,
         )}' from remote cache because of cache ${chalk.bgRed('MISS')}`,
       )
 
@@ -189,21 +175,6 @@ const restoreCache = async (
   }
 
   return false
-}
-
-const computeCache = (files: string[], environment: string[]) => {
-  const hash = crypto.createHmac('sha1', '')
-
-  files
-    .map((file) => path.join(process.cwd(), file))
-    .flatMap((globPath) => glob.sync(globPath))
-    .filter((filePath) => fs.statSync(filePath).isFile())
-    .sort()
-    .forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
-
-  environment.forEach((env) => hash.update(process.env[env] ?? ''))
-
-  return hash.digest('hex').slice(0, 10)
 }
 
 const middleware: Middleware<PluginConfig<'shadowdog-remote-aws-s3-cache'>> = async ({

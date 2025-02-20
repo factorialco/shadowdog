@@ -1,3 +1,5 @@
+import * as crypto from 'crypto'
+import * as glob from 'glob'
 import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
@@ -28,4 +30,31 @@ export const exit = async (eventEmitter: ShadowdogEventEmitter, code: number) =>
   eventEmitter.removeAllListeners()
 
   process.exit(code)
+}
+
+export const computeCache = (files: string[], environment: string[]) => {
+  const hash = crypto.createHmac('sha1', '')
+
+  files
+    .map((file) => path.join(process.cwd(), file))
+    .flatMap((globPath) => glob.sync(globPath))
+    .filter((filePath) => fs.statSync(filePath).isFile())
+    .sort()
+    .forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
+
+  environment.forEach((env) => hash.update(process.env[env] ?? ''))
+
+  hash.update(readShadowdogVersion())
+
+  return hash.digest('hex').slice(0, 10)
+}
+
+export const computeFileCacheName = (currentCache: string, fileName: string) => {
+  const hash = crypto.createHmac('sha1', '')
+
+  hash.update(currentCache)
+  hash.update(fileName)
+  hash.update(readShadowdogVersion())
+
+  return hash.digest('hex').slice(0, 10)
 }
