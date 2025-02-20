@@ -8,7 +8,8 @@ vi.mock('../utils', async () => {
 
   return {
     ...utils,
-
+    computeCache: vi.fn(() => '0adeca2ac6'),
+    computeFileCacheName: vi.fn(() => '0adeca2ac6'),
     readShadowdogVersion: vi.fn(() => ''),
   }
 })
@@ -99,9 +100,10 @@ describe('shadowdog local cache', () => {
 
     describe('when the artifact is a folder with some files to ignore', () => {
       beforeEach(async () => {
+        fs.mkdirpSync('tmp/tests/artifacts')
         fs.writeFileSync('tmp/tests/artifacts/foo', 'foo')
         fs.writeFileSync('tmp/tests/artifacts/bar', 'bar')
-        await compressArtifact('tmp/tests/artifacts', 'tmp/tests/cache/079138748b.tar.gz')
+        await compressArtifact('tmp/tests/artifacts', 'tmp/tests/cache/0adeca2ac6.tar.gz')
         fs.rmSync('tmp/tests/artifacts', { recursive: true })
       })
 
@@ -132,6 +134,7 @@ describe('shadowdog local cache', () => {
           },
           eventEmitter,
         })
+        fs.mkdirpSync('tmp/tests/artifacts')
         expect(next).not.toHaveBeenCalled()
         expect(fs.readFileSync('tmp/tests/artifacts/foo', 'utf8')).toBe('foo')
         expect(fs.existsSync('tmp/tests/artifacts/bar')).toBe(false)

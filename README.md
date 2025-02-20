@@ -99,6 +99,7 @@ Enhance Shadowdog with these powerful plugins:
   - `SHADOWDOG_DISABLE_REMOTE_CACHE`: When `true`, disables remote cache completely
   - `SHADOWDOG_REMOTE_CACHE_READ`: When set, overrides the plugin's read cache configuration (`true`/`false`)
   - `SHADOWDOG_REMOTE_CACHE_WRITE`: When set, overrides the plugin's write cache configuration (`true`/`false`)
+  - `SHADOWDOG_REMOTE_CACHE_EXTRA`: When set, adds extra information to the cache key in S3
   - `AWS_PROFILE`: AWS profile to use for authentication (optional)
   - `AWS_ACCESS_KEY_ID`: AWS access key ID (required if AWS_PROFILE not set)
   - `AWS_SECRET_ACCESS_KEY`: AWS secret access key (required if AWS_PROFILE not set)

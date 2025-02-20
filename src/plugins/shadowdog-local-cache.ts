@@ -1,5 +1,3 @@
-import * as crypto from 'crypto'
-import * as glob from 'glob'
 import * as fs from 'fs-extra'
 import * as path from 'path'
 import * as tar from 'tar'
@@ -8,8 +6,8 @@ import * as zlib from 'zlib'
 import chalk from 'chalk'
 import { Middleware } from '.'
 import { CommandConfig } from '../config'
-import { logMessage, logError, readShadowdogVersion } from '../utils'
 import { PluginConfig } from '../pluginTypes'
+import { computeCache, computeFileCacheName, logError, logMessage } from '../utils'
 
 type FilterFn = (file: string) => boolean
 
@@ -99,8 +97,8 @@ const restoreCache = async (
     }
 
     logMessage(
-      `📦 Not able to reuse artifact '${chalk.blue(
-        artifact.output,
+      `📦 Not able to reuse artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+        cacheFileName,
       )}' from cache because of cache ${chalk.bgRed('MISS')}`,
     )
 
@@ -125,32 +123,6 @@ const restoreCache = async (
   }
 
   return false
-}
-
-const computeCache = (files: string[], environment: string[]) => {
-  const hash = crypto.createHmac('sha1', '')
-
-  files
-    .map((file) => path.join(process.cwd(), file))
-    .flatMap((globPath) => glob.sync(globPath))
-    .filter((filePath) => fs.statSync(filePath).isFile())
-    .sort()
-    .forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
-
-  environment.forEach((env) => hash.update(process.env[env] ?? ''))
-
-  hash.update(readShadowdogVersion())
-
-  return hash.digest('hex').slice(0, 10)
-}
-
-const computeFileCacheName = (currentCache: string, fileName: string) => {
-  const hash = crypto.createHmac('sha1', '')
-
-  hash.update(currentCache)
-  hash.update(fileName)
-
-  return hash.digest('hex').slice(0, 10)
 }
 
 const filterFn = (ignore: string[] | undefined, outputPath: string, filePath: string) => {
