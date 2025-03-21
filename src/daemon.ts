@@ -14,118 +14,133 @@ import { TaskRunner } from './task-runner'
 
 const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) => {
   return Promise.all<chokidar.FSWatcher>(
-    config.watchers
-      .filter(({ files, enabled = true }) => {
-        if (!enabled) {
-          logMessage(`🧪 Watcher for files '${chalkFiles(files)}' is disabled. Skipping...`)
-        }
-        return enabled
-      })
-      .map((watcherConfig) => {
-        return new Promise((resolve, reject) => {
-          let tasks: Array<childProcess.ChildProcess> = []
-          const ignored = [...watcherConfig.ignored, ...config.defaultIgnoredFiles].map((file) =>
-            path.join(process.cwd(), file),
-          )
-          const watcher = chokidar.watch(
-            watcherConfig.files.map((file) => path.join(process.cwd(), file)),
-            {
-              ignoreInitial: true,
-              ignored,
-            },
-          )
+    config.watchers.map((watcherConfig, watcherIndex) => {
+      return new Promise((resolve, reject) => {
+        let tasks: Array<childProcess.ChildProcess> = []
+        const ignored = [...watcherConfig.ignored, ...config.defaultIgnoredFiles].map((file) =>
+          path.join(process.cwd(), file),
+        )
+        const watcher = chokidar.watch(
+          watcherConfig.files.map((file) => path.join(process.cwd(), file)),
+          {
+            ignoreInitial: true,
+            ignored,
+          },
+        )
 
-          const killPendingTasks = () => {
-            tasks.forEach((task) => {
-              try {
-                if (task.pid) {
-                  process.kill(-task.pid, 'SIGKILL')
-                  logMessage(
-                    `💀 Command (PID: ${chalk.magenta(
-                      task.pid,
-                    )}) was killed because another task was started`,
-                  )
-                }
-              } catch {
-                logMessage(`💀 Command (PID: ${chalk.magenta(task.pid)}) Unable to kill process.`)
+        const killPendingTasks = () => {
+          tasks.forEach((task) => {
+            try {
+              if (task.pid) {
+                process.kill(-task.pid, 'SIGKILL')
+                logMessage(
+                  `💀 Command (PID: ${chalk.magenta(
+                    task.pid,
+                  )}) was killed because another task was started`,
+                )
               }
-            })
-            tasks = []
-          }
+            } catch {
+              logMessage(`💀 Command (PID: ${chalk.magenta(task.pid)}) Unable to kill process.`)
+            }
+          })
+          tasks = []
+        }
 
-          const onFileChange: (filePath: string) => void = async (filePath) => {
-            const changedFilePath = path.relative(process.cwd(), filePath)
+        const onFileChange: (filePath: string) => void = async (filePath) => {
+          const changedFilePath = path.relative(process.cwd(), filePath)
 
-            logMessage(`🔀 File '${chalk.blue(changedFilePath)}' has been changed`)
+          logMessage(`🔀 File '${chalk.blue(changedFilePath)}' has been changed`)
 
-            killPendingTasks()
+          killPendingTasks()
 
-            await Promise.all(
-              watcherConfig.commands.map(async (commandConfig) => {
-                eventEmitter.emit('begin', {
-                  artifacts: commandConfig.artifacts,
-                })
+          await Promise.all(
+            watcherConfig.commands.map(async (commandConfig, commandIndex) => {
+              const startTime = Date.now()
 
-                const taskRunner = new TaskRunner({
+              eventEmitter.emit('begin', {
+                artifacts: commandConfig.artifacts,
+                watcherIndex,
+                commandIndex,
+              })
+
+              const taskRunner = new TaskRunner({
+                files: watcherConfig.files,
+                invalidators: watcherConfig.invalidators,
+                config: commandConfig,
+                changedFilePath,
+                eventEmitter,
+                task: {
+                  type: 'command',
+                  config: commandConfig,
                   files: watcherConfig.files,
                   invalidators: watcherConfig.invalidators,
-                  config: commandConfig,
+                  watcherIndex,
+                  commandIndex,
+                },
+              })
+
+              filterMiddlewarePlugins(config.plugins).forEach(({ fn, options }) => {
+                taskRunner.use(fn.middleware, options)
+              })
+
+              taskRunner.use(() => {
+                return runTask({
+                  command: commandConfig.command,
+                  workingDirectory: path.join(process.cwd(), commandConfig.workingDirectory),
                   changedFilePath,
-                  eventEmitter,
+                  onSpawn: (task) => {
+                    tasks.push(task)
+                  },
+                  onExit: (task) => {
+                    tasks = tasks.filter((pendingTask) => pendingTask.pid !== task.pid)
+                  },
                 })
+              })
 
-                filterMiddlewarePlugins(config.plugins).forEach(({ fn, options }) => {
-                  taskRunner.use(fn.middleware, options)
+              try {
+                await taskRunner.execute()
+                const duration = Date.now() - startTime
+
+                eventEmitter.emit('end', {
+                  artifacts: commandConfig.artifacts,
+                  watcherIndex,
+                  commandIndex,
+                  duration,
+                  fromCache: false,
                 })
+              } catch (error) {
+                const duration = Date.now() - startTime
 
-                taskRunner.use(() => {
-                  return runTask({
-                    command: commandConfig.command,
-                    workingDirectory: path.join(process.cwd(), commandConfig.workingDirectory),
-                    changedFilePath,
-                    onSpawn: (task) => {
-                      tasks.push(task)
-                    },
-                    onExit: (task) => {
-                      tasks = tasks.filter((pendingTask) => pendingTask.pid !== task.pid)
-                    },
-                  })
+                eventEmitter.emit('error', {
+                  artifacts: commandConfig.artifacts,
+                  errorMessage: (error as Error).message,
+                  watcherIndex,
+                  commandIndex,
+                  duration,
                 })
+              }
+            }),
+          )
+        }
 
-                try {
-                  await taskRunner.execute()
+        const onReady = () => {
+          logMessage(
+            `🔍 Files ${chalkFiles(watcherConfig.files)} are watching ${chalk.cyan(
+              Object.keys(watcher.getWatched()).length,
+            )} folders.`,
+          )
 
-                  eventEmitter.emit('end', {
-                    artifacts: commandConfig.artifacts,
-                  })
-                } catch (error) {
-                  eventEmitter.emit('error', {
-                    artifacts: commandConfig.artifacts,
-                    errorMessage: (error as Error).message,
-                  })
-                }
-              }),
-            )
-          }
+          resolve(watcher)
+        }
 
-          const onReady = () => {
-            logMessage(
-              `🔍 Files ${chalkFiles(watcherConfig.files)} are watching ${chalk.cyan(
-                Object.keys(watcher.getWatched()).length,
-              )} folders.`,
-            )
+        const debouncedOnFileChange = debounce(onFileChange, config.debounceTime)
 
-            resolve(watcher)
-          }
-
-          const debouncedOnFileChange = debounce(onFileChange, config.debounceTime)
-
-          watcher.on('add', debouncedOnFileChange)
-          watcher.on('change', debouncedOnFileChange)
-          watcher.on('ready', onReady)
-          watcher.on('error', reject)
-        })
-      }),
+        watcher.on('add', debouncedOnFileChange)
+        watcher.on('change', debouncedOnFileChange)
+        watcher.on('ready', onReady)
+        watcher.on('error', reject)
+      })
+    }),
   )
 }
 

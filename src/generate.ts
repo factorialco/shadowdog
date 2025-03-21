@@ -8,28 +8,30 @@ import { runTask } from './tasks'
 
 export type Task = ParallelTask | SerialTask | CommandTask | EmptyTask
 
-export interface CommandTask {
-  type: 'command'
-  config: CommandConfig
-  files: string[]
-  invalidators: InvalidatorConfig
-}
-
 export interface ParallelTask {
   type: 'parallel'
   tasks: Task[]
 }
 
-interface SerialTask {
+export interface SerialTask {
   type: 'serial'
   tasks: Task[]
+}
+
+export interface CommandTask {
+  type: 'command'
+  config: CommandConfig
+  files: string[]
+  invalidators: InvalidatorConfig
+  watcherIndex: number
+  commandIndex: number
 }
 
 export interface EmptyTask {
   type: 'empty'
 }
 
-interface GenerateOptions {
+export interface GenerateOptions {
   continueOnError: boolean
 }
 
@@ -52,8 +54,12 @@ const processTask = async (
       return
     }
     case 'command': {
+      const startTime = Date.now()
+
       eventEmitter.emit('begin', {
         artifacts: task.config.artifacts,
+        watcherIndex: task.watcherIndex,
+        commandIndex: task.commandIndex,
       })
 
       const taskRunner = new TaskRunner({
@@ -61,6 +67,7 @@ const processTask = async (
         invalidators: task.invalidators,
         config: task.config,
         eventEmitter,
+        task,
       })
 
       filterMiddlewarePlugins(pluginsConfig).forEach(({ fn, options: pluginOptions }) => {
@@ -78,14 +85,23 @@ const processTask = async (
 
       try {
         await taskRunner.execute()
+        const duration = Date.now() - startTime
 
         eventEmitter.emit('end', {
           artifacts: task.config.artifacts,
+          watcherIndex: task.watcherIndex,
+          commandIndex: task.commandIndex,
+          duration,
         })
       } catch (error) {
+        const duration = Date.now() - startTime
+
         eventEmitter.emit('error', {
           artifacts: task.config.artifacts,
           errorMessage: (error as Error).message,
+          watcherIndex: task.watcherIndex,
+          commandIndex: task.commandIndex,
+          duration,
         })
 
         if (!options.continueOnError) {
@@ -110,12 +126,14 @@ export const generate = async (
 
   const task: Task = {
     type: 'parallel',
-    tasks: config.watchers.flatMap((watcherConfig) =>
-      watcherConfig.commands.map((commandConfig) => ({
+    tasks: config.watchers.flatMap((watcherConfig, watcherIndex) =>
+      watcherConfig.commands.map((commandConfig, commandIndex) => ({
         type: 'command',
         config: commandConfig,
         files: watcherConfig.files,
         invalidators: watcherConfig.invalidators,
+        watcherIndex,
+        commandIndex,
       })),
     ),
   }

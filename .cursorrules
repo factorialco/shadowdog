@@ -1,0 +1,44 @@
+# Cursor Rules for TypeScript Projects
+
+## Type Safety
+
+1. NO use of non-null assertion operator (!)
+
+   - ❌ Bad: `const value!: string`
+   - ✅ Good: Initialize values in constructor or provide default values
+
+2. NO use of @ts-ignore or @ts-expect-error
+
+   - ❌ Bad: `// @ts-ignore`
+   - ✅ Good: Create proper type definitions or interfaces
+
+3. NO use of 'any' type
+   - ❌ Bad: `function process(data: any)`
+   - ✅ Good: Use specific types or generics
+
+## Type Definitions
+
+1. External library types should be properly defined in:
+
+   - `src/types/{library-name}.d.ts`
+   - Include all necessary interfaces and type exports
+
+2. Project types should be organized in:
+   - `src/types.ts` for shared types
+   - Alongside components for component-specific types
+
+## Best Practices
+
+1. Initialize class properties in constructor
+
+   - ❌ Bad: `private prop!: Type`
+   - ✅ Good: Initialize in constructor or provide default value
+
+2. Use interfaces over types for objects
+
+   - ❌ Bad: `type Config = { prop: string }`
+   - ✅ Good: `interface Config { prop: string }`
+
+3. Explicit return types on functions
+   - ❌ Bad: `function getData() { return data }`
+   - ✅ Good: `function getData(): Data { return data }`

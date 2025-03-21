@@ -4,14 +4,25 @@ import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
 import { ShadowdogEventEmitter } from './events'
+import { Logger } from './types'
+
+let currentLogger: Logger = {
+  log: (message: string) => {
+    console.log(message)
+  },
+}
+
+export const setLogger = (logger: Logger) => {
+  currentLogger = logger
+}
 
 export const logMessage = (message: string) => {
-  console.log(message)
+  currentLogger.log(message)
 }
 
 export const logError = (error: Error) => {
   if (process.env.DEBUG) {
-    console.error(chalk.red(new Error(error.stack)))
+    currentLogger.log(chalk.red(new Error(error.stack)))
   }
 }
 
@@ -35,15 +46,14 @@ export const exit = async (eventEmitter: ShadowdogEventEmitter, code: number) =>
 export const computeCache = (files: string[], environment: string[]) => {
   const hash = crypto.createHmac('sha1', '')
 
-  files
+  const resolvedFiles = files
     .map((file) => path.join(process.cwd(), file))
     .flatMap((globPath) => glob.sync(globPath))
     .filter((filePath) => fs.statSync(filePath).isFile())
     .sort()
-    .forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
 
+  resolvedFiles.forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
   environment.forEach((env) => hash.update(process.env[env] ?? ''))
-
   hash.update(readShadowdogVersion())
 
   return hash.digest('hex').slice(0, 10)

@@ -26,6 +26,19 @@
           "command": "npm run build-schema"
         }
       ]
+    },
+    {
+      "files": ["README.md"],
+      "commands": [
+        {
+          "artifacts": [
+            {
+              "output": "README.md.copy"
+            }
+          ],
+          "command": "cp README.md README.md.copy"
+        }
+      ]
     }
   ]
 }
