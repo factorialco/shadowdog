@@ -15,23 +15,24 @@ import shadowdogLock from './shadowdog-lock'
 
 import { ShadowdogEventEmitter } from '../events'
 
+export type Middleware<Options = unknown> = (options: {
+  files: string[]
+  invalidators: InvalidatorConfig
+  config: CommandConfig
+  eventEmitter: ShadowdogEventEmitter
+  changedFilePath?: string
+  options: Options
+  next: () => Promise<unknown>
+  abort: () => void
+  task?: Task
+}) => Promise<unknown>
+
 export type Listener<Options = unknown> = (
   shadowdogEventListener: ShadowdogEventEmitter,
   options: Options,
 ) => void
 
 export type Command = (activeWatchers: Task) => Task
-
-export type Middleware<Options = unknown> = (control: {
-  files: string[]
-  invalidators: InvalidatorConfig
-  config: CommandConfig
-  options: Options
-  next: () => Promise<unknown>
-  abort: () => void
-  changedFilePath?: string
-  eventEmitter: ShadowdogEventEmitter
-}) => Promise<unknown>
 
 type PluginsMap = {
   'shadowdog-rake': { command: Command }

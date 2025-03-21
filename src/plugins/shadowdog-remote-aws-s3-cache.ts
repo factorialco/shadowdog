@@ -5,11 +5,13 @@ import * as minio from 'minio'
 import path from 'path'
 import * as tar from 'tar'
 import * as zlib from 'zlib'
+import { EventEmitter } from 'events'
 
 import { Middleware } from '.'
 import { ArtifactConfig, CommandConfig } from '../config'
 import { PluginConfig } from '../pluginTypes'
 import { computeCache, computeFileCacheName, logError, logMessage } from '../utils'
+import { CommandTask } from '../generate'
 
 const createClient = () => {
   const { AWS_PROFILE } = process.env
@@ -127,6 +129,8 @@ const restoreCache = async (
   commandConfig: CommandConfig,
   currentCache: string,
   pluginOptions: PluginConfig<'shadowdog-remote-aws-s3-cache'>,
+  eventEmitter: EventEmitter,
+  task: CommandTask,
 ) => {
   // Check if we can reuse some artifacts from the cache
   const promisesToGenerate = commandConfig.artifacts.map(async (artifact) => {
@@ -142,6 +146,15 @@ const restoreCache = async (
           cacheFileName,
         )}' from remote cache because of cache ${chalk.bgGreen('HIT')}`,
       )
+
+      // Emit end event with fromCache flag for this artifact
+      eventEmitter.emit('end', {
+        artifacts: [artifact],
+        watcherIndex: task.watcherIndex,
+        commandIndex: task.commandIndex,
+        duration: 0,
+        fromCache: true,
+      })
 
       return null
     } catch (error) {
@@ -166,10 +179,19 @@ const restoreCache = async (
     artifactToGenerate.filter(Boolean).length === 0 // Filtering out the artifacts that were reused from cache
   ) {
     logMessage(
-      `⤵️  Skipping command '${chalk.yellow(
+      `⏭️ Skipping command '${chalk.yellow(
         commandConfig.command,
       )}' generation because all artifacts were reused from remote cache`,
     )
+
+    // Emit end event with fromCache flag for all artifacts
+    eventEmitter.emit('end', {
+      artifacts: commandConfig.artifacts,
+      watcherIndex: task.watcherIndex,
+      commandIndex: task.commandIndex,
+      duration: 0,
+      fromCache: true,
+    })
 
     return true
   }
@@ -184,6 +206,8 @@ const middleware: Middleware<PluginConfig<'shadowdog-remote-aws-s3-cache'>> = as
   next,
   abort,
   options,
+  eventEmitter,
+  task,
 }) => {
   if (process.env.SHADOWDOG_DISABLE_REMOTE_CACHE) {
     return next()
@@ -205,8 +229,15 @@ const middleware: Middleware<PluginConfig<'shadowdog-remote-aws-s3-cache'>> = as
 
   const currentCache = computeCache([...files, ...invalidators.files], invalidators.environment)
 
-  if (readCache) {
-    const hasBeenRestored = await restoreCache(client, config, currentCache, options)
+  if (readCache && task?.type === 'command') {
+    const hasBeenRestored = await restoreCache(
+      client,
+      config,
+      currentCache,
+      options,
+      eventEmitter,
+      task,
+    )
 
     if (hasBeenRestored) {
       return abort()

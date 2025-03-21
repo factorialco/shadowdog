@@ -8,6 +8,8 @@ import { Middleware } from '.'
 import { CommandConfig } from '../config'
 import { PluginConfig } from '../pluginTypes'
 import { computeCache, computeFileCacheName, logError, logMessage } from '../utils'
+import { EventEmitter } from 'events'
+import { CommandTask } from '../generate'
 
 type FilterFn = (file: string) => boolean
 
@@ -62,6 +64,8 @@ const restoreCache = async (
   commandConfig: CommandConfig,
   currentCache: string,
   { path: cachePath }: PluginConfig<'shadowdog-local-cache'>,
+  eventEmitter: EventEmitter,
+  task: CommandTask,
 ) => {
   // Check if we can reuse some artifacts from the cache
   const promisesToGenerate = commandConfig.artifacts.map(async (artifact) => {
@@ -114,10 +118,19 @@ const restoreCache = async (
     artifactToGenerate.filter(Boolean).length === 0 // Filtering out the artifacts that were reused from cache
   ) {
     logMessage(
-      `⤵️  Skipping command '${chalk.yellow(
+      `📦 Skipping command '${chalk.yellow(
         commandConfig.command,
       )}' generation because all artifacts were reused from cache`,
     )
+
+    // Emit end event with fromCache flag
+    eventEmitter.emit('end', {
+      artifacts: commandConfig.artifacts,
+      watcherIndex: task.watcherIndex,
+      commandIndex: task.commandIndex,
+      duration: 0,
+      fromCache: true,
+    })
 
     return true
   }
@@ -148,6 +161,8 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
   next,
   abort,
   options,
+  eventEmitter,
+  task,
 }) => {
   if (process.env.SHADOWDOG_DISABLE_LOCAL_CACHE) {
     return next()
@@ -167,11 +182,17 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
 
   fs.mkdirpSync(cachePath)
 
-  if (readCache) {
-    const hasBeenRestored = await restoreCache(config, currentCache, {
-      ...options,
-      path: cachePath,
-    })
+  if (readCache && task?.type === 'command') {
+    const hasBeenRestored = await restoreCache(
+      config,
+      currentCache,
+      {
+        ...options,
+        path: cachePath,
+      },
+      eventEmitter,
+      task,
+    )
 
     if (hasBeenRestored) {
       return abort()

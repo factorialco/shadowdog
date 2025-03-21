@@ -1,6 +1,7 @@
 import { CommandConfig, InvalidatorConfig } from './config'
 import { ShadowdogEventEmitter } from './events'
 import { Middleware } from './plugins'
+import { Task } from './generate'
 
 interface Options {
   files: string[]
@@ -8,7 +9,9 @@ interface Options {
   config: CommandConfig
   eventEmitter: ShadowdogEventEmitter
   changedFilePath?: string
+  task?: Task
 }
+
 export class TaskRunner {
   middlewares: Array<{ middleware: Middleware; options: unknown; changedFilePath?: string }>
 
@@ -41,6 +44,7 @@ export class TaskRunner {
         options: current.options,
         next,
         abort,
+        task: this.runnerOptions.task,
       })
     }
 
