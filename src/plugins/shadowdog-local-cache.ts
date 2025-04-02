@@ -65,6 +65,7 @@ const restoreCache = async (
 ) => {
   // Check if we can reuse some artifacts from the cache
   const promisesToGenerate = commandConfig.artifacts.map(async (artifact) => {
+    const start = Date.now()
     const cacheFileName = computeFileCacheName(currentCache, artifact.output)
     const cacheFilePath = path.join(cachePath, `${cacheFileName}.tar.gz`)
 
@@ -96,10 +97,12 @@ const restoreCache = async (
       return null
     }
 
+    const seconds = ((Date.now() - start) / 1000).toFixed(2)
+
     logMessage(
       `📦 Not able to reuse artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
         cacheFileName,
-      )}' from cache because of cache ${chalk.bgRed('MISS')}`,
+      )}' from cache because of cache ${chalk.bgRed('MISS')} ${chalk.cyan(`(${seconds}s)`)}`,
     )
 
     // If we can't reuse the artifact, we return it so it can be generated
@@ -183,6 +186,7 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
   if (writeCache) {
     return Promise.all(
       config.artifacts.map(async (artifact) => {
+        const start = Date.now()
         const sourceCacheFilePath = path.join(process.cwd(), artifact.output)
         const exists = await fs.exists(sourceCacheFilePath)
 
@@ -198,11 +202,12 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
         const cacheFileName = computeFileCacheName(currentCache, artifact.output)
 
         const cacheFilePath = path.join(cachePath, `${cacheFileName}.tar.gz`)
+        const seconds = ((Date.now() - start) / 1000).toFixed(2)
 
         logMessage(
           `📦 Storing artifact '${chalk.blue(artifact.output)}' in cache with value '${chalk.green(
             cacheFileName,
-          )}'`,
+          )}' ${chalk.cyan(`(${seconds}s)`)}`,
         )
 
         try {
