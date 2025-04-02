@@ -130,32 +130,32 @@ const restoreCache = async (
 ) => {
   // Check if we can reuse some artifacts from the cache
   const promisesToGenerate = commandConfig.artifacts.map(async (artifact) => {
-        const start = Date.now()
-        const cacheFileName = computeFileCacheName(currentCache, artifact.output)
+    const start = Date.now()
+    const cacheFileName = computeFileCacheName(currentCache, artifact.output)
 
-        const cacheFilePath = path.join(pluginOptions.path, `${cacheFileName}.tar.gz`)
+    const cacheFilePath = path.join(pluginOptions.path, `${cacheFileName}.tar.gz`)
 
-        try {
-          await restoreRemoteCache(client, pluginOptions.bucketName, cacheFilePath, artifact)
+    try {
+      await restoreRemoteCache(client, pluginOptions.bucketName, cacheFilePath, artifact)
 
-          const seconds = ((Date.now() - start) / 1000).toFixed(2)
-          logMessage(
-            `🌐 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
-              cacheFileName,
-            )}' from remote cache because of cache ${chalk.bgGreen('HIT')} ${chalk.cyan(`(${seconds}s)`)}`,
-          )
+      const seconds = ((Date.now() - start) / 1000).toFixed(2)
+      logMessage(
+        `🌐 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+          cacheFileName,
+        )}' from remote cache because of cache ${chalk.bgGreen('HIT')} ${chalk.cyan(`(${seconds}s)`)}`,
+      )
 
-          return null
-        } catch (error) {
-          const seconds = ((Date.now() - start) / 1000).toFixed(2)
-          logMessage(
-            `🌐 Not able to reuse artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
-              cacheFileName,
-            )}' from remote cache because of cache ${chalk.bgRed('MISS')} ${chalk.cyan(`(${seconds}s)`)}`,
-          )
+      return null
+    } catch (error) {
+      const seconds = ((Date.now() - start) / 1000).toFixed(2)
+      logMessage(
+        `🌐 Not able to reuse artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+          cacheFileName,
+        )}' from remote cache because of cache ${chalk.bgRed('MISS')} ${chalk.cyan(`(${seconds}s)`)}`,
+      )
 
-          logError(error as Error)
-        }
+      logError(error as Error)
+    }
 
     // If we can't reuse the artifact, we return it so it can be generated
     return artifact
