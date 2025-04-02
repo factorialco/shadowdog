@@ -52,12 +52,15 @@
     "lint:inspect-config": "eslint --inspect-config",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "build-schema": "tsx src/build-schema.ts",
+    "build-schema": "sleep 5 && tsx src/build-schema.ts",
     "generate": "tsx src/cli.ts",
     "watch": "tsx src/cli.ts --watch",
+    "watch:ui": "npm run watch -- --ui",
     "all": "npm run build && npm run lint && npm run format && npm run generate && npm test"
   },
   "dependencies": {
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
     "chalk": "^4",
     "chokidar": "^3.5.3",
     "commander": "^12.1.0",
@@ -70,6 +73,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",
+    "@types/blessed": "^0.1.25",
     "@types/fs-extra": "11.0.1",
     "@types/lodash": "^4.17.13",
     "eslint": "^9.16.0",

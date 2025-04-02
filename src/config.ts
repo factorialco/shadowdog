@@ -67,7 +67,7 @@ export const configSchema = z
                       .array(z.string())
                       .default([])
                       .describe(
-                        'A list of tags to associate with the command. Used with the `generate` command to filter commands by tag.',
+                        'A list of tags to associate with the commafnd. Used with the `generate` command to filter commands by tag.',
                       ),
                     artifacts: z
                       .array(
