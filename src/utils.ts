@@ -40,7 +40,10 @@ export const computeCache = (files: string[], environment: string[], command: st
     .flatMap((globPath) => glob.sync(globPath))
     .filter((filePath) => fs.statSync(filePath).isFile())
     .sort()
-    .forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
+    .forEach((filePath) => {
+      hash.update(filePath)
+      hash.update(fs.readFileSync(filePath, 'utf-8'))
+    })
 
   environment.forEach((env) => hash.update(process.env[env] ?? ''))
 
