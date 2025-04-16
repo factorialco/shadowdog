@@ -166,7 +166,11 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
 
   const cachePath = process.env.SHADOWDOG_LOCAL_CACHE_PATH ?? options.path
 
-  const currentCache = computeCache([...files, ...invalidators.files], invalidators.environment, config.command)
+  const currentCache = computeCache(
+    [...files, ...invalidators.files],
+    invalidators.environment,
+    config.command,
+  )
 
   fs.mkdirpSync(cachePath)
 
