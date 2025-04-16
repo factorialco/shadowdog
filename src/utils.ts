@@ -32,7 +32,7 @@ export const exit = async (eventEmitter: ShadowdogEventEmitter, code: number) =>
   process.exit(code)
 }
 
-export const computeCache = (files: string[], environment: string[]) => {
+export const computeCache = (files: string[], environment: string[], command: string) => {
   const hash = crypto.createHmac('sha1', '')
 
   files
@@ -40,10 +40,14 @@ export const computeCache = (files: string[], environment: string[]) => {
     .flatMap((globPath) => glob.sync(globPath))
     .filter((filePath) => fs.statSync(filePath).isFile())
     .sort()
-    .forEach((filePath) => hash.update(fs.readFileSync(filePath, 'utf-8')))
+    .forEach((filePath) => {
+      hash.update(filePath)
+      hash.update(fs.readFileSync(filePath, 'utf-8'))
+    })
 
   environment.forEach((env) => hash.update(process.env[env] ?? ''))
 
+  hash.update(command)
   hash.update(readShadowdogVersion())
 
   return hash.digest('hex').slice(0, 10)
