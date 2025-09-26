@@ -1,10 +1,10 @@
 {
-  "version": "0.7.5",
+  "version": "0.8.0",
   "nodeVersion": "v22.14.0",
   "artifacts": [
     {
       "output": "schema.json",
-      "cacheIdentifier": "1cea47a1af",
+      "cacheIdentifier": "d526530c73",
       "fileManifest": {
         "watchedFilesCount": 4,
         "watchedFiles": [
