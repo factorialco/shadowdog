@@ -32,23 +32,73 @@ export const exit = async (eventEmitter: ShadowdogEventEmitter, code: number) =>
   process.exit(code)
 }
 
-export const computeCache = (files: string[], environment: string[], command: string) => {
-  const hash = crypto.createHmac('sha1', '')
+// Helper function to check if a file matches an ignore pattern
+const matchesIgnorePattern = (filePath: string, pattern: string): boolean => {
+  // Handle exact matches
+  if (pattern === filePath) {
+    return true
+  }
 
-  files
+  // Handle directory patterns (e.g., "node_modules" should match "any/path/node_modules" and "any/path/node_modules/anything")
+  if (pattern.endsWith('/') || !pattern.includes('*')) {
+    const normalizedPattern = pattern.endsWith('/') ? pattern.slice(0, -1) : pattern
+    return filePath === normalizedPattern || filePath.startsWith(normalizedPattern + '/')
+  }
+
+  // Handle glob patterns with ** (e.g., "**/node_modules")
+  if (pattern.startsWith('**/')) {
+    const suffix = pattern.slice(3) // Remove "**/" prefix
+    return filePath.includes(suffix) || filePath.endsWith(suffix)
+  }
+
+  // Handle glob patterns with * (e.g., "*.log")
+  if (pattern.includes('*')) {
+    // Convert glob pattern to regex
+    const regexPattern = pattern
+      .replace(/\./g, '\\.') // Escape dots
+      .replace(/\*/g, '.*') // Convert * to .*
+      .replace(/\*\*/g, '.*') // Convert ** to .*
+    const regex = new RegExp(`^${regexPattern}$`)
+    return regex.test(filePath)
+  }
+
+  return false
+}
+
+export const processFiles = (files: string[], ignoredFiles: string[] = []): string[] => {
+  // Expand glob patterns and filter to files only
+  const allFiles = files
     .map((file) => path.join(process.cwd(), file))
     .flatMap((globPath) => glob.sync(globPath))
     .filter((filePath) => fs.statSync(filePath).isFile())
     .sort()
-    .forEach((filePath) => {
-      hash.update(filePath)
-      hash.update(fs.readFileSync(filePath, 'utf-8'))
-    })
+
+  if (ignoredFiles.length === 0) {
+    return allFiles.map((filePath) => path.relative(process.cwd(), filePath))
+  }
+
+  // Convert to relative paths for pattern matching
+  const relativeFiles = allFiles.map((filePath) => path.relative(process.cwd(), filePath))
+
+  // Filter out ignored files using efficient pattern matching
+  return relativeFiles.filter((file) => {
+    return !ignoredFiles.some((pattern) => matchesIgnorePattern(file, pattern))
+  })
+}
+
+export const computeCache = (files: string[], environment: string[], command: string) => {
+  const hash = crypto.createHmac('sha1', '')
+
+  files.forEach((filePath) => {
+    hash.update(filePath)
+    hash.update(fs.readFileSync(path.join(process.cwd(), filePath), 'utf-8'))
+  })
 
   environment.forEach((env) => hash.update(process.env[env] ?? ''))
 
   hash.update(command)
   hash.update(readShadowdogVersion())
+  hash.update(process.version)
 
   return hash.digest('hex').slice(0, 10)
 }
@@ -58,7 +108,6 @@ export const computeFileCacheName = (currentCache: string, fileName: string) => 
 
   hash.update(currentCache)
   hash.update(fileName)
-  hash.update(readShadowdogVersion())
 
   return hash.digest('hex').slice(0, 10)
 }

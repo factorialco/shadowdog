@@ -32,23 +32,12 @@ export const configSchema = z
               .array(z.string().describe('File path'))
               .default([])
               .describe('List of files to watch'),
-            invalidators: z
-              .object({
-                files: z
-                  .array(z.string().describe('File path'))
-                  .default([])
-                  .describe(
-                    'List of files that invalidate the cache when they change. These ones are not watched.',
-                  ),
-                environment: z
-                  .array(z.string().describe('Environment variable name'))
-                  .default([])
-                  .describe(
-                    'List of environment variables that invalidate the cache when they change.',
-                  ),
-              })
-              .default({ files: [], environment: [] })
-              .describe('List of invalidators for the cache'),
+            environment: z
+              .array(z.string().describe('Environment variable name'))
+              .default([])
+              .describe(
+                'List of environment variables that invalidate the cache when they change.',
+              ),
             ignored: z
               .array(z.string().describe('File path'))
               .default([])
@@ -112,8 +101,6 @@ export type CommandConfig = WatcherConfig['commands'][number]
 export type ArtifactConfig = NonNullable<CommandConfig['artifacts']>[number]
 
 export type PluginsConfig = ConfigFile['plugins']
-
-export type InvalidatorConfig = WatcherConfig['invalidators']
 
 export const loadConfig = (configFilePath: string): ConfigFile => {
   logMessage(`✨ Reading config file from '${chalk.blue(configFilePath)}'...`)

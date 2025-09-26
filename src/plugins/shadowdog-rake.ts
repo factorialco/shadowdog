@@ -73,12 +73,7 @@ const collapseRakeTasks = (tasks: CommandTask[]): ParallelTask | EmptyTask => {
           type: 'command',
           config,
           files: tasksInWorkingDirectory.flatMap((watcher) => watcher.files),
-          invalidators: {
-            files: tasksInWorkingDirectory.flatMap((watcher) => watcher.invalidators.files),
-            environment: tasksInWorkingDirectory.flatMap(
-              (watcher) => watcher.invalidators.environment,
-            ),
-          },
+          environment: tasksInWorkingDirectory.flatMap((watcher) => watcher.environment),
         }
       },
     ),

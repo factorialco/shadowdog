@@ -15,10 +15,7 @@ it('shadowdog rake joins rake tasks from the same working directory', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -29,10 +26,7 @@ it('shadowdog rake joins rake tasks from the same working directory', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -43,10 +37,7 @@ it('shadowdog rake joins rake tasks from the same working directory', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
     ],
   }
@@ -63,10 +54,7 @@ it('shadowdog rake joins rake tasks from the same working directory', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'parallel',
@@ -80,10 +68,7 @@ it('shadowdog rake joins rake tasks from the same working directory', () => {
               workingDirectory: 'backend',
             },
             files: [],
-            invalidators: {
-              environment: [],
-              files: [],
-            },
+            environment: [],
           },
         ],
       },
@@ -104,10 +89,7 @@ it('shadowdog rake joins rake tasks from different working directories', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -118,10 +100,7 @@ it('shadowdog rake joins rake tasks from different working directories', () => {
           workingDirectory: 'graphql-server',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -132,10 +111,7 @@ it('shadowdog rake joins rake tasks from different working directories', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -146,10 +122,7 @@ it('shadowdog rake joins rake tasks from different working directories', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
     ],
   }
@@ -166,10 +139,7 @@ it('shadowdog rake joins rake tasks from different working directories', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'parallel',
@@ -183,10 +153,7 @@ it('shadowdog rake joins rake tasks from different working directories', () => {
               workingDirectory: 'backend',
             },
             files: [],
-            invalidators: {
-              environment: [],
-              files: [],
-            },
+            environment: [],
           },
           {
             type: 'command',
@@ -197,10 +164,7 @@ it('shadowdog rake joins rake tasks from different working directories', () => {
               workingDirectory: 'graphql-server',
             },
             files: [],
-            invalidators: {
-              environment: [],
-              files: [],
-            },
+            environment: [],
           },
         ],
       },
