@@ -1,185 +1,175 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import shadowdogLock from './shadowdog-lock'
 import * as fs from 'fs-extra'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ShadowdogEventEmitter } from '../events'
 
+// Mock fs-extra - because apparently mocking file system operations is rocket science
 vi.mock('fs-extra', () => ({
-  default: {
-    existsSync: vi.fn(),
-    readFileSync: vi.fn(),
-    writeFileSync: vi.fn(),
-    unlinkSync: vi.fn(),
-    mkdirpSync: vi.fn(),
-  },
-  existsSync: vi.fn(),
-  readFileSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  unlinkSync: vi.fn(),
-  mkdirpSync: vi.fn(),
+  ensureDir: vi.fn().mockResolvedValue(undefined),
+  writeJSON: vi.fn().mockResolvedValue(undefined),
+  readJSON: vi.fn().mockResolvedValue({}),
+  pathExists: vi.fn().mockResolvedValue(false),
 }))
 
-describe('shadowdog-lock', () => {
-  const mockFs = vi.mocked(fs)
-  const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
-  const lockPath = '/tmp/shadowdog/lock'
-  const options = { path: lockPath }
-  const eventEmitter = new ShadowdogEventEmitter()
-  let shadowdogLock: typeof import('./shadowdog-lock').default
+// Mock glob
+vi.mock('glob', () => ({
+  glob: vi.fn(),
+}))
 
-  beforeEach(async () => {
+// Mock utils
+vi.mock('../utils', () => ({
+  logMessage: vi.fn(),
+  readShadowdogVersion: vi.fn(() => '0.8.0'),
+  computeCache: vi.fn((files, env, cmd) => `cache-${files.length}-${env.length}-${cmd.length}`),
+  computeFileCacheName: vi.fn((cache, fileName) => `file-cache-${cache}-${fileName}`),
+}))
+
+describe('shadowdog-lock plugin', () => {
+  let mockNext: () => Promise<void>
+  let mockAbort: () => void
+  let mockEventEmitter: ShadowdogEventEmitter
+  let mockControl: {
+    files: string[]
+    environment: string[]
+    config: {
+      command: string
+      workingDirectory: string
+      tags: string[]
+      artifacts: Array<{ output: string; ignore?: string[] }>
+    }
+    options: { path: string }
+    next: () => Promise<void>
+    abort: () => void
+    eventEmitter: ShadowdogEventEmitter
+  }
+
+  beforeEach(() => {
+    mockNext = vi.fn().mockResolvedValue(undefined)
+    mockAbort = vi.fn()
+    mockEventEmitter = new ShadowdogEventEmitter()
+    mockControl = {
+      files: ['src/test.ts'],
+      environment: [],
+      config: {
+        command: 'npm run test',
+        workingDirectory: '',
+        tags: [],
+        artifacts: [{ output: 'test.json' }],
+      },
+      options: { path: '/tmp/shadowdog/lock' },
+      next: mockNext,
+      abort: mockAbort,
+      eventEmitter: mockEventEmitter,
+    }
     vi.clearAllMocks()
-    vi.resetModules()
-    shadowdogLock = (await import('./shadowdog-lock')).default
   })
 
-  describe('middleware', () => {
-    it('should abort if lock exists and is not owned by current process', async () => {
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue('other-pid')
-
-      const next = vi.fn()
-      const abort = vi.fn()
-
-      await shadowdogLock.middleware({
-        next,
-        abort,
-        options,
-        files: [],
-        invalidators: { files: [], environment: [] },
-        config: { command: '', workingDirectory: '', tags: [], artifacts: [] },
-        eventEmitter,
-      })
-
-      expect(mockExit).toHaveBeenCalledWith(1)
-      expect(next).not.toHaveBeenCalled()
-    })
-
-    it('should continue if lock exists but is owned by current process', async () => {
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue(process.pid.toString())
-
-      const next = vi.fn()
-      const abort = vi.fn()
-
-      await shadowdogLock.middleware({
-        next,
-        abort,
-        options,
-        files: [],
-        invalidators: { files: [], environment: [] },
-        config: { command: '', workingDirectory: '', tags: [], artifacts: [] },
-        eventEmitter,
-      })
-
-      expect(abort).not.toHaveBeenCalled()
-      expect(next).toHaveBeenCalled()
-    })
-
-    it('should continue if lock does not exist', async () => {
-      mockFs.existsSync.mockReturnValue(false)
-
-      const next = vi.fn()
-      const abort = vi.fn()
-
-      await shadowdogLock.middleware({
-        next,
-        abort,
-        options,
-        files: [],
-        invalidators: { files: [], environment: [] },
-        config: { command: '', workingDirectory: '', tags: [], artifacts: [] },
-        eventEmitter,
-      })
-
-      expect(abort).not.toHaveBeenCalled()
-      expect(next).toHaveBeenCalled()
-    })
+  afterEach(() => {
+    vi.clearAllMocks()
   })
 
-  describe('listener', () => {
-    it('should create lock file on begin event if it does not exist', () => {
-      mockFs.existsSync.mockReturnValue(false)
-      shadowdogLock.listener(eventEmitter, options)
-
-      eventEmitter.emit('begin', { artifacts: [] })
-
-      expect(mockFs.writeFileSync).toHaveBeenCalledWith(lockPath, process.pid.toString())
-    })
-
-    it('should remove lock file on exit event if owned by current process', () => {
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue(process.pid.toString())
-      shadowdogLock.listener(eventEmitter, options)
-
-      eventEmitter.emit('exit')
-
-      expect(mockFs.unlinkSync).toHaveBeenCalledWith(lockPath)
-    })
-
-    it('should not remove lock file on exit event if not owned by current process', () => {
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue('other-pid')
-      shadowdogLock.listener(eventEmitter, options)
-
-      eventEmitter.emit('exit')
-
-      expect(mockFs.unlinkSync).not.toHaveBeenCalled()
-    })
-
-    it('should remove lock file on end event when counter reaches zero', () => {
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue(process.pid.toString())
-      shadowdogLock.listener(eventEmitter, options)
-
-      eventEmitter.emit('begin', { artifacts: [] })
-      eventEmitter.emit('end', { artifacts: [] })
-
-      expect(mockFs.unlinkSync).toHaveBeenCalledWith(lockPath)
-    })
-
-    it('should not remove lock file on end event when counter is greater than zero', () => {
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue(process.pid.toString())
-      shadowdogLock.listener(eventEmitter, options)
-
-      eventEmitter.emit('begin', { artifacts: [] })
-      eventEmitter.emit('begin', { artifacts: [] })
-      eventEmitter.emit('end', { artifacts: [] })
-
-      expect(mockFs.unlinkSync).not.toHaveBeenCalled()
-    })
+  it('should be a middleware plugin', () => {
+    expect(shadowdogLock).toHaveProperty('middleware')
+    expect(typeof shadowdogLock.middleware).toBe('function')
   })
 
-  describe('shadowdog-lock error handling', () => {
-    beforeEach(() => {
-      shadowdogLock.listener(eventEmitter, options)
-    })
+  it('should write lock file after task completion', async () => {
+    // The mocks are already set up, no need to mock them again
+    await shadowdogLock.middleware(mockControl)
 
-    it('should decrement counter and remove lock file on error when counter reaches 0', () => {
-      // Simulate two begin events
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue(process.pid.toString())
-      eventEmitter.emit('begin', { artifacts: [] })
-      eventEmitter.emit('begin', { artifacts: [] })
-      expect(mockFs.unlinkSync).not.toHaveBeenCalled()
+    expect(mockNext).toHaveBeenCalled()
+    expect(fs.ensureDir).toHaveBeenCalled()
+    expect(fs.writeJSON).toHaveBeenCalled()
+  })
 
-      // Simulate error events
-      eventEmitter.emit('error', { artifacts: [], errorMessage: 'test error' })
-      expect(mockFs.unlinkSync).not.toHaveBeenCalled() // Lock file should still exist when counter > 0
+  it('should merge with existing lock file', async () => {
+    const existingLockFile = {
+      version: '0.7.0',
+      nodeVersion: 'v20.0.0',
+      artifacts: [
+        {
+          output: 'existing.json',
+          cacheIdentifier: 'old-cache',
+          fileManifest: {
+            watchedFiles: ['src/existing.ts'],
+            invalidatorFiles: [],
+            environment: {},
+            command: 'npm run existing',
+            cacheIdentifier: 'old-watched-cache',
+          },
+        },
+      ],
+    }
 
-      eventEmitter.emit('error', { artifacts: [], errorMessage: 'test error' })
-      expect(mockFs.unlinkSync).toHaveBeenCalledWith(lockPath) // Lock file should be removed when counter reaches 0
-    })
+    // Override the default mocks for this test - because we need different behavior
+    ;(fs.pathExists as ReturnType<typeof vi.fn>).mockResolvedValue(true)
+    vi.mocked(fs.readJSON).mockResolvedValue(existingLockFile)
 
-    it('should not remove lock file on error if not lock owner', () => {
-      // Create lock file with different PID
-      mockFs.existsSync.mockReturnValue(true)
-      mockFs.readFileSync.mockReturnValue('99999')
+    await shadowdogLock.middleware(mockControl)
 
-      eventEmitter.emit('begin', { artifacts: [] })
-      eventEmitter.emit('error', { artifacts: [], errorMessage: 'test error' })
+    expect(fs.writeJSON).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        artifacts: expect.arrayContaining([
+          expect.objectContaining({ output: 'existing.json' }),
+          expect.objectContaining({ output: 'test.json' }),
+        ]),
+      }),
+      { spaces: 2 },
+    )
+  })
 
-      expect(mockFs.unlinkSync).not.toHaveBeenCalled()
-      expect(mockFs.readFileSync(lockPath, 'utf-8')).toBe('99999')
-    })
+  it('should handle file patterns as provided', async () => {
+    mockControl.files = ['src/test1.ts', 'src/test2.ts']
+
+    await shadowdogLock.middleware(mockControl)
+
+    expect(fs.writeJSON).toHaveBeenCalled()
+    // Verify the files are included in the lock file
+    expect(fs.writeJSON).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        artifacts: expect.arrayContaining([
+          expect.objectContaining({
+            fileManifest: expect.objectContaining({
+              watchedFiles: ['src/test1.ts', 'src/test2.ts'],
+            }),
+          }),
+        ]),
+      }),
+      { spaces: 2 },
+    )
+  })
+
+  it('should handle errors gracefully', async () => {
+    // Mock fs functions to throw error - because we need to test error handling too
+    vi.mocked(fs.pathExists).mockRejectedValue(new Error('File system error'))
+
+    // Should not throw - the plugin should handle errors gracefully
+    await expect(shadowdogLock.middleware(mockControl)).resolves.not.toThrow()
+
+    // Should still try to write the file
+    expect(fs.writeJSON).toHaveBeenCalled()
+  })
+
+  it('should handle concurrent calls with write promise protection', async () => {
+    // Mock fs functions with delays - because testing concurrency is fun
+    vi.mocked(fs.ensureDir).mockImplementation(
+      () => new Promise((resolve) => setTimeout(resolve, 10)),
+    )
+
+    // Call middleware multiple times concurrently - this is where the magic happens
+    const promises = [
+      shadowdogLock.middleware(mockControl),
+      shadowdogLock.middleware(mockControl),
+      shadowdogLock.middleware(mockControl),
+    ]
+
+    await Promise.all(promises)
+
+    // The plugin should write the lock file for each call, but the writePromise
+    // ensures they don't interfere with each other
+    expect(fs.writeJSON).toHaveBeenCalled()
+    expect(fs.writeJSON).toHaveBeenCalledTimes(3)
   })
 })

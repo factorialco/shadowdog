@@ -218,34 +218,14 @@
             "default": [],
             "description": "List of files to watch"
           },
-          "invalidators": {
-            "type": "object",
-            "properties": {
-              "files": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "description": "File path"
-                },
-                "default": [],
-                "description": "List of files that invalidate the cache when they change. These ones are not watched."
-              },
-              "environment": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "description": "Environment variable name"
-                },
-                "default": [],
-                "description": "List of environment variables that invalidate the cache when they change."
-              }
+          "environment": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Environment variable name"
             },
-            "additionalProperties": false,
-            "default": {
-              "files": [],
-              "environment": []
-            },
-            "description": "List of invalidators for the cache"
+            "default": [],
+            "description": "List of environment variables that invalidate the cache when they change."
           },
           "ignored": {
             "type": "array",

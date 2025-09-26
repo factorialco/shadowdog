@@ -183,7 +183,7 @@ const restoreCache = async (
 const middleware: Middleware<PluginConfig<'shadowdog-remote-aws-s3-cache'>> = async ({
   config,
   files,
-  invalidators,
+  environment,
   next,
   abort,
   options,
@@ -206,11 +206,7 @@ const middleware: Middleware<PluginConfig<'shadowdog-remote-aws-s3-cache'>> = as
     ? process.env.SHADOWDOG_REMOTE_CACHE_WRITE === 'true'
     : options.write
 
-  const currentCache = computeCache(
-    [...files, ...invalidators.files],
-    invalidators.environment,
-    config.command,
-  )
+  const currentCache = computeCache(files, environment, config.command)
 
   if (readCache) {
     const hasBeenRestored = await restoreCache(client, config, currentCache, options)

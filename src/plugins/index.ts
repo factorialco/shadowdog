@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { CommandConfig, InvalidatorConfig, PluginsConfig } from '../config'
+import { CommandConfig, PluginsConfig } from '../config'
 import { Task } from '../generate'
 import { pluginOptionsSchema } from '../pluginTypes'
 
@@ -24,7 +24,7 @@ export type Command = (activeWatchers: Task) => Task
 
 export type Middleware<Options = unknown> = (control: {
   files: string[]
-  invalidators: InvalidatorConfig
+  environment: string[]
   config: CommandConfig
   options: Options
   next: () => Promise<unknown>

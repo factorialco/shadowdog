@@ -85,7 +85,6 @@ Enhance Shadowdog with these powerful plugins:
   Implements a local caching mechanism to speed up repeated artifact generation.
 
   Environment variables:
-
   - `SHADOWDOG_DISABLE_LOCAL_CACHE`: When `true`, disables local cache completely
   - `SHADOWDOG_LOCAL_CACHE_READ`: When set, overrides the plugin's read cache configuration (`true`/`false`)
   - `SHADOWDOG_LOCAL_CACHE_WRITE`: When set, overrides the plugin's write cache configuration (`true`/`false`)
@@ -95,7 +94,6 @@ Enhance Shadowdog with these powerful plugins:
   Enables remote caching with AWS S3 for distributed workflows.
 
   Environment variables:
-
   - `SHADOWDOG_DISABLE_REMOTE_CACHE`: When `true`, disables remote cache completely
   - `SHADOWDOG_REMOTE_CACHE_READ`: When set, overrides the plugin's read cache configuration (`true`/`false`)
   - `SHADOWDOG_REMOTE_CACHE_WRITE`: When set, overrides the plugin's write cache configuration (`true`/`false`)
@@ -109,17 +107,30 @@ Enhance Shadowdog with these powerful plugins:
   Adds tagging capabilities to filter specific commands.
 
   Environment variables:
-
   - `SHADOWDOG_TAG`: When set, only runs commands with matching tag
 
 - **`shadowdog-lock`**
-  Prevents multiple instances of Shadowdog from running simultaneously by implementing file-based locking.
+  Generates a `shadowdog-lock.json` file that tracks artifact metadata and dependencies for reproducible builds.
+
+  The lock file includes:
+  - Shadowdog version used for generation
+  - Node.js version for environment consistency
+  - Artifact cache identifiers and file manifests
+  - Watched files with wildcard expansion
+  - Environment variable values used for invalidation
+  - Command details for each artifact
+
+  Features:
+  - **Deterministic output**: All arrays are sorted for consistent lock files
+  - **Partial updates**: Only updates changed artifacts in watch mode
+  - **Race condition safe**: Handles concurrent task execution
+  - **Wildcard support**: Expands file patterns like `src/*.ts` automatically
+  - **Relative paths**: All file paths are relative to project root
 
 - **`shadowdog-git`**
   Handles git rebases and merges smoothly pausing the watcher and resuming it after the rebase is done.
 
   Internal configuration:
-
   - Checks for rebase every 2000ms (INTERVAL_TIME)
   - Uses `.git/rebase-merge` to detect rebase state
 
@@ -127,7 +138,6 @@ Enhance Shadowdog with these powerful plugins:
   Provides an external communication channel for interacting with Shadowdog.
 
   No configurable environment variables. Uses socket events:
-
   - `CHANGED_FILE`: Emitted when a file changes
   - `ERROR`: Emitted on errors
   - `INITIALIZED`: Emitted on startup
@@ -165,6 +175,37 @@ Update your configuration:
 ```
 
 Take into account that the order of plugins is important. The plugins will be executed in the order they are defined in the configuration file.
+
+---
+
+## How Caching Works 🔄
+
+Shadowdog uses a sophisticated caching system to determine when artifacts need to be regenerated. Understanding how cache keys are computed is crucial for optimizing your workflows.
+
+### Cache Key Computation
+
+Cache identifiers are generated using the `computeCache` function, which creates deterministic hashes based on:
+
+1. **File Contents**: All watched files are read and their contents included in the hash
+2. **File Paths**: Absolute file paths are used for consistency across environments
+3. **Environment Variables**: Only specified environment variables are included
+4. **Command**: The exact command string is hashed
+5. **Shadowdog Version**: Ensures cache invalidation when Shadowdog is updated
+
+### Key Features
+
+- **Deterministic**: Same inputs always produce the same cache key
+- **Sorted Files**: File paths are sorted alphabetically for consistency
+- **Wildcard Expansion**: Glob patterns like `src/*.ts` are expanded before hashing
+- **Environment Aware**: Only specified environment variables affect the cache
+- **Version Sensitive**: Cache invalidates when Shadowdog version changes
+
+### Best Practices
+
+- **Use specific file patterns**: Avoid overly broad glob patterns that might include unwanted files
+- **Environment variables**: Only include variables that actually affect your build process
+- **File organization**: Keep related files together for better cache efficiency
+- **Version pinning**: Use specific Shadowdog versions in CI/CD for reproducible builds
 
 ---
 

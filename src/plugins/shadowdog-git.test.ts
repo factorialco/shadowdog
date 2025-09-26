@@ -28,10 +28,7 @@ describe('shadowdog git', () => {
           workingDirectory: '',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
         next,
         abort: () => {},
         options: {},

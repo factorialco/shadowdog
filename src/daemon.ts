@@ -6,7 +6,7 @@ import path from 'path'
 import chalk from 'chalk'
 import { ConfigFile, loadConfig } from './config'
 import { runTask } from './tasks'
-import { chalkFiles, exit, logMessage, readShadowdogVersion } from './utils'
+import { chalkFiles, exit, logMessage, processFiles, readShadowdogVersion } from './utils'
 
 import { ShadowdogEventEmitter } from './events'
 import { filterMiddlewarePlugins } from './plugins'
@@ -53,10 +53,15 @@ const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) 
             tasks = []
           }
 
-          const onFileChange: (filePath: string) => void = async (filePath) => {
+          const onFileChange: (
+            filePath: string,
+            action: 'added' | 'changed' | 'deleted',
+          ) => void = async (filePath, action) => {
             const changedFilePath = path.relative(process.cwd(), filePath)
 
-            logMessage(`🔀 File '${chalk.blue(changedFilePath)}' has been changed`)
+            logMessage(
+              `🔀 File '${chalk.blue(changedFilePath)}' has been ${chalk.cyanBright(action)}`,
+            )
 
             killPendingTasks()
 
@@ -66,9 +71,15 @@ const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) 
                   artifacts: commandConfig.artifacts,
                 })
 
+                // Pre-process files with ignores
+                const processedFiles = processFiles(watcherConfig.files, [
+                  ...watcherConfig.ignored,
+                  ...config.defaultIgnoredFiles,
+                ])
+
                 const taskRunner = new TaskRunner({
-                  files: watcherConfig.files,
-                  invalidators: watcherConfig.invalidators,
+                  files: processedFiles,
+                  environment: watcherConfig.environment,
                   config: commandConfig,
                   changedFilePath,
                   eventEmitter,
@@ -118,10 +129,18 @@ const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) 
             resolve(watcher)
           }
 
-          const debouncedOnFileChange = debounce(onFileChange, config.debounceTime)
-
-          watcher.on('add', debouncedOnFileChange)
-          watcher.on('change', debouncedOnFileChange)
+          watcher.on(
+            'add',
+            debounce((filePath) => onFileChange(filePath, 'added'), config.debounceTime),
+          )
+          watcher.on(
+            'change',
+            debounce((filePath) => onFileChange(filePath, 'changed'), config.debounceTime),
+          )
+          watcher.on(
+            'unlink',
+            debounce((filePath) => onFileChange(filePath, 'deleted'), config.debounceTime),
+          )
           watcher.on('ready', onReady)
           watcher.on('error', reject)
         })

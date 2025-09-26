@@ -1,10 +1,10 @@
-import { CommandConfig, InvalidatorConfig } from './config'
+import { CommandConfig } from './config'
 import { ShadowdogEventEmitter } from './events'
 import { Middleware } from './plugins'
 
 interface Options {
   files: string[]
-  invalidators: InvalidatorConfig
+  environment: string[]
   config: CommandConfig
   eventEmitter: ShadowdogEventEmitter
   changedFilePath?: string
@@ -34,7 +34,7 @@ export class TaskRunner {
       const current = this.middlewares[index]
       return current.middleware({
         files: this.runnerOptions.files,
-        invalidators: this.runnerOptions.invalidators,
+        environment: this.runnerOptions.environment,
         config: this.runnerOptions.config,
         eventEmitter: this.runnerOptions.eventEmitter,
         changedFilePath: this.runnerOptions.changedFilePath,

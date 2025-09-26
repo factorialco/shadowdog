@@ -16,7 +16,9 @@ const cli = new Command()
 
 const eventEmitter = new ShadowdogEventEmitter()
 
-cli.version(pjson.version).description('TBA')
+cli
+  .version(pjson.version)
+  .description('A blazing fast build system with intelligent caching and file watching')
 
 cli
   .option(

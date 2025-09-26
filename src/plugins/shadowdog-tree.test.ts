@@ -19,10 +19,7 @@ it('shadowdog tree organize tasks with dependencies in serial tasks', () => {
           workingDirectory: '',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -37,10 +34,7 @@ it('shadowdog tree organize tasks with dependencies in serial tasks', () => {
           workingDirectory: '',
         },
         files: ['first.artifact'],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -55,10 +49,7 @@ it('shadowdog tree organize tasks with dependencies in serial tasks', () => {
           workingDirectory: '',
         },
         files: ['second.artifact'],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
     ],
   }
@@ -82,10 +73,7 @@ it('shadowdog tree organize tasks with dependencies in serial tasks', () => {
               workingDirectory: '',
             },
             files: [],
-            invalidators: {
-              environment: [],
-              files: [],
-            },
+            environment: [],
           },
         ],
       },
@@ -105,10 +93,7 @@ it('shadowdog tree organize tasks with dependencies in serial tasks', () => {
               workingDirectory: '',
             },
             files: ['first.artifact'],
-            invalidators: {
-              environment: [],
-              files: [],
-            },
+            environment: [],
           },
         ],
       },
@@ -128,10 +113,7 @@ it('shadowdog tree organize tasks with dependencies in serial tasks', () => {
               workingDirectory: '',
             },
             files: ['second.artifact'],
-            invalidators: {
-              environment: [],
-              files: [],
-            },
+            environment: [],
           },
         ],
       },

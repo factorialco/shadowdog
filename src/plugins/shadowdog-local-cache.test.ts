@@ -42,10 +42,7 @@ describe('shadowdog local cache', () => {
           workingDirectory: '',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
         next,
         abort: () => {},
         options: {
@@ -80,10 +77,7 @@ describe('shadowdog local cache', () => {
             workingDirectory: '',
           },
           files: [],
-          invalidators: {
-            environment: [],
-            files: [],
-          },
+          environment: [],
           next,
           abort: () => {},
           options: {
@@ -121,10 +115,7 @@ describe('shadowdog local cache', () => {
             workingDirectory: '',
           },
           files: [],
-          invalidators: {
-            environment: [],
-            files: [],
-          },
+          environment: [],
           next,
           abort: () => {},
           options: {
@@ -165,10 +156,7 @@ describe('shadowdog local cache', () => {
           workingDirectory: '',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
         next,
         abort: () => {},
         options: {

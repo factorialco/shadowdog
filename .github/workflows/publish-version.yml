@@ -26,7 +26,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 'v22.14.0'
           registry-url: 'https://registry.npmjs.org/'
 
       - name: Install dependencies
@@ -39,6 +39,12 @@ jobs:
 
       - name: Bump version
         run: npm version ${{ inputs.bump_type }}
+
+      - name: Regenerate lock file
+        run: |
+          npm run generate
+          git add shadowdog-lock.json
+          git commit -m "Regenerate lock file"
 
       - name: Push changes
         run: |

@@ -146,7 +146,7 @@ const filterFn = (ignore: string[] | undefined, outputPath: string, filePath: st
 
 const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
   files,
-  invalidators,
+  environment,
   config,
   next,
   abort,
@@ -166,11 +166,7 @@ const middleware: Middleware<PluginConfig<'shadowdog-local-cache'>> = async ({
 
   const cachePath = process.env.SHADOWDOG_LOCAL_CACHE_PATH ?? options.path
 
-  const currentCache = computeCache(
-    [...files, ...invalidators.files],
-    invalidators.environment,
-    config.command,
-  )
+  const currentCache = computeCache(files, environment, config.command)
 
   fs.mkdirpSync(cachePath)
 

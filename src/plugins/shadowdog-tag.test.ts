@@ -19,10 +19,7 @@ it('shadowdog tag filters tasks given a tag from environment variables', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -33,10 +30,7 @@ it('shadowdog tag filters tasks given a tag from environment variables', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'command',
@@ -47,10 +41,7 @@ it('shadowdog tag filters tasks given a tag from environment variables', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
     ],
   }
@@ -67,10 +58,7 @@ it('shadowdog tag filters tasks given a tag from environment variables', () => {
           workingDirectory: 'backend',
         },
         files: [],
-        invalidators: {
-          environment: [],
-          files: [],
-        },
+        environment: [],
       },
       {
         type: 'empty',

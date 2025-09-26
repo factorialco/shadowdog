@@ -1,10 +1,11 @@
 import path from 'path'
 
-import { CommandConfig, ConfigFile, InvalidatorConfig, PluginsConfig } from './config'
+import { CommandConfig, ConfigFile, PluginsConfig } from './config'
 import { ShadowdogEventEmitter } from './events'
 import { filterCommandPlugins, filterMiddlewarePlugins } from './plugins'
 import { TaskRunner } from './task-runner'
 import { runTask } from './tasks'
+import { processFiles } from './utils'
 
 export type Task = ParallelTask | SerialTask | CommandTask | EmptyTask
 
@@ -12,7 +13,7 @@ export interface CommandTask {
   type: 'command'
   config: CommandConfig
   files: string[]
-  invalidators: InvalidatorConfig
+  environment: string[]
 }
 
 export interface ParallelTask {
@@ -58,7 +59,7 @@ const processTask = async (
 
       const taskRunner = new TaskRunner({
         files: task.files,
-        invalidators: task.invalidators,
+        environment: task.environment,
         config: task.config,
         eventEmitter,
       })
@@ -110,14 +111,19 @@ export const generate = async (
 
   const task: Task = {
     type: 'parallel',
-    tasks: config.watchers.flatMap((watcherConfig) =>
-      watcherConfig.commands.map((commandConfig) => ({
+    tasks: config.watchers.flatMap((watcherConfig) => {
+      const files = processFiles(watcherConfig.files, [
+        ...watcherConfig.ignored,
+        ...config.defaultIgnoredFiles,
+      ])
+
+      return watcherConfig.commands.map((commandConfig) => ({
         type: 'command',
         config: commandConfig,
-        files: watcherConfig.files,
-        invalidators: watcherConfig.invalidators,
-      })),
-    ),
+        files,
+        environment: watcherConfig.environment,
+      }))
+    }),
   }
 
   const finalTask = plugins.reduce<Task>((subTask, { fn }) => fn.command(subTask), task)
