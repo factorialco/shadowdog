@@ -1,11 +1,18 @@
-import * as fs from 'fs-extra'
+// fs-extra is used for ensureDir but we're not using it directly in this file
+import { writeFileSync, readFileSync } from 'fs'
 import * as path from 'path'
 
 import chalk from 'chalk'
-import { Middleware } from '.'
+import { Listener } from '.'
 import { PluginConfig } from '../pluginTypes'
-import { logMessage, readShadowdogVersion, computeCache, computeFileCacheName } from '../utils'
-import { ArtifactConfig } from '../config'
+import {
+  logMessage,
+  readShadowdogVersion,
+  computeCache,
+  computeFileCacheName,
+  processFiles,
+} from '../utils'
+import { ArtifactConfig, ConfigFile } from '../config'
 
 // Lock file structure interfaces
 interface LockFileArtifact {
@@ -27,7 +34,35 @@ interface ShadowdogLockFile {
 
 // Global state
 let lockFilePath: string = ''
+let config: ConfigFile | null = null
 let writePromise: Promise<void> | null = null
+let isInGenerateMode: boolean = false
+
+// Function to detect and resolve merge conflicts in lock file
+const detectAndResolveConflicts = (filePath: string): boolean => {
+  try {
+    const content = readFileSync(filePath, 'utf8')
+
+    // Check for common merge conflict markers
+    if (content.includes('<<<<<<<') || content.includes('=======') || content.includes('>>>>>>>')) {
+      logMessage(`🔧 Detected merge conflicts in lock file. Regenerating from scratch...`)
+      return true
+    }
+
+    // Check if the file is valid JSON
+    try {
+      JSON.parse(content)
+    } catch {
+      logMessage(`🔧 Lock file contains invalid JSON. Regenerating from scratch...`)
+      return true
+    }
+
+    return false
+  } catch {
+    // File doesn't exist or can't be read, that's fine
+    return false
+  }
+}
 
 // Helper functions
 
@@ -65,7 +100,11 @@ const createArtifactEntry = (
   }
 }
 
-const writeLockFile = async (newArtifacts: Map<string, LockFileArtifact>) => {
+const regenerateLockFile = async () => {
+  if (!config) {
+    return
+  }
+
   // Wait for any existing write operation to complete
   if (writePromise) {
     await writePromise
@@ -73,53 +112,59 @@ const writeLockFile = async (newArtifacts: Map<string, LockFileArtifact>) => {
 
   // Create new write promise to prevent race conditions
   writePromise = (async () => {
-    // Read existing lock file if it exists
-    let existingLockFile: ShadowdogLockFile | null = null
-    try {
-      if (await fs.pathExists(lockFilePath)) {
-        existingLockFile = await fs.readJSON(lockFilePath)
+    const start = Date.now()
+
+    // Initialize lock file path if not already done
+    if (!lockFilePath) {
+      lockFilePath = path.resolve(process.cwd(), 'shadowdog-lock.json')
+    }
+
+    // Note: Conflict detection is already done in configLoaded event
+    // This function will regenerate the lock file regardless
+
+    // Generate all artifacts in deterministic order based on shadowdog.json
+    const allArtifacts: LockFileArtifact[] = []
+
+    for (const watcherConfig of config.watchers) {
+      // Process files with ignores
+      const processedFiles = processFiles(watcherConfig.files, [
+        ...(watcherConfig.ignored || []),
+        ...config.defaultIgnoredFiles,
+      ])
+
+      for (const commandConfig of watcherConfig.commands) {
+        for (const artifact of commandConfig.artifacts) {
+          const artifactEntry = createArtifactEntry(
+            artifact,
+            processedFiles,
+            watcherConfig.environment,
+            commandConfig.command,
+          )
+          allArtifacts.push(artifactEntry)
+        }
       }
-    } catch {
-      // If we can't read the existing file, start fresh
-      existingLockFile = null
     }
-
-    // Merge with existing artifacts, updating only the ones that changed
-    const allArtifacts = new Map<string, LockFileArtifact>()
-
-    // Add existing artifacts (if any)
-    if (existingLockFile?.artifacts) {
-      for (const artifact of existingLockFile.artifacts) {
-        allArtifacts.set(artifact.output, artifact)
-      }
-    }
-
-    // Update with new artifacts
-    for (const [output, artifact] of newArtifacts) {
-      allArtifacts.set(output, artifact)
-    }
-
-    // Sort artifacts by output path for deterministic ordering
-    const sortedArtifacts = Array.from(allArtifacts.values()).sort((a, b) =>
-      a.output.localeCompare(b.output),
-    )
 
     const lockFile: ShadowdogLockFile = {
       version: readShadowdogVersion(),
       nodeVersion: process.version,
-      artifacts: sortedArtifacts,
+      artifacts: allArtifacts,
     }
 
+    // Skip directory creation since the file already exists
+    // await fs.ensureDir(path.dirname(lockFilePath))
+
     try {
-      await fs.ensureDir(path.dirname(lockFilePath))
-      await fs.writeJSON(lockFilePath, lockFile, { spaces: 2 })
+      // Use synchronous write to avoid hanging issues
+      const jsonContent = JSON.stringify(lockFile, null, 2)
+      writeFileSync(lockFilePath, jsonContent, 'utf8')
+
+      const seconds = ((Date.now() - start) / 1000).toFixed(2)
       const relativeLockPath = path.relative(process.cwd(), lockFilePath)
-      const artifactNames = Array.from(newArtifacts.keys()).join(', ')
-      const cacheIds = Array.from(newArtifacts.values())
-        .map((a) => a.cacheIdentifier)
-        .join(', ')
+      const artifactCount = allArtifacts.length
+      const artifactNames = allArtifacts.map((a) => a.output).join(', ')
       logMessage(
-        `📝 Lock file written to '${chalk.blue(relativeLockPath)}' updated: '${chalk.blue(artifactNames)}' with id '${chalk.green(cacheIds)}'`,
+        `📝 Lock file regenerated at '${chalk.blue(relativeLockPath)}' with ${chalk.blue(artifactCount)} artifacts: ${chalk.green(artifactNames)} ${chalk.cyan(`(${seconds}s)`)}`,
       )
     } catch (error) {
       logMessage(`❌ Failed to write lock file: ${(error as Error).message}`)
@@ -129,33 +174,45 @@ const writeLockFile = async (newArtifacts: Map<string, LockFileArtifact>) => {
   await writePromise
 }
 
-// Middleware plugin implementation - back to this because events don't have enough data
-const middleware: Middleware<PluginConfig<'shadowdog-lock'>> = async ({
-  files,
-  environment,
-  config,
-  next,
-}) => {
-  // Initialize lock file path if not already done
-  if (!lockFilePath) {
-    lockFilePath = path.resolve(process.cwd(), 'shadowdog-lock.json')
-  }
+// Event listener plugin implementation
+const listener: Listener<PluginConfig<'shadowdog-lock'>> = (eventEmitter) => {
+  // Store config reference when it's loaded
+  eventEmitter.on('configLoaded', ({ config: loadedConfig }) => {
+    config = loadedConfig as ConfigFile
 
-  // Create artifact entries for this task
-  const taskArtifacts = new Map<string, LockFileArtifact>()
+    // Initialize lock file path and check for conflicts early
+    if (!lockFilePath) {
+      lockFilePath = path.resolve(process.cwd(), 'shadowdog-lock.json')
+    }
 
-  for (const artifact of config.artifacts) {
-    const artifactEntry = createArtifactEntry(artifact, files, environment, config.command)
-    taskArtifacts.set(artifact.output, artifactEntry)
-  }
+    // Check for merge conflicts and resolve them immediately
+    if (detectAndResolveConflicts(lockFilePath)) {
+      // Regenerate immediately to resolve conflicts
+      regenerateLockFile()
+    }
+  })
 
-  // Execute the next middleware/task
-  await next()
+  // Mark when generate mode starts
+  eventEmitter.on('generateStarted', () => {
+    isInGenerateMode = true
+  })
 
-  // Write lock file with partial update (after task completion to avoid race conditions)
-  await writeLockFile(taskArtifacts)
+  // Regenerate lock file after all tasks complete in generate mode
+  eventEmitter.on('allTasksComplete', async () => {
+    isInGenerateMode = false // Mark that generate mode is complete
+    await regenerateLockFile()
+  })
+
+  // Regenerate lock file after each task completion in daemon mode only
+  // (not during the initial generate phase)
+  eventEmitter.on('end', async () => {
+    // Only regenerate in daemon mode (when not in generate mode)
+    if (!isInGenerateMode && config && lockFilePath) {
+      await regenerateLockFile()
+    }
+  })
 }
 
 export default {
-  middleware,
+  listener,
 }

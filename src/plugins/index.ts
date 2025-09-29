@@ -57,7 +57,7 @@ type PluginsMap = {
   }
   'shadowdog-git': { middleware: Middleware }
   'shadowdog-lock': {
-    middleware: Middleware<
+    listener: Listener<
       Extract<z.infer<typeof pluginOptionsSchema>, { name: 'shadowdog-lock' }>['options']
     >
   }
