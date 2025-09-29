@@ -166,6 +166,8 @@ export const runDaemon = async (
       logMessage(`🔃 Configuration file has been changed. Restarting Shadowdog...`)
       try {
         currentConfig = loadConfig(configFilePath)
+        // Emit config loaded event for plugins that need to update
+        eventEmitter.emit('configLoaded', { config: currentConfig })
         await Promise.all(currentWatchers.map((watcher) => watcher.close()))
         currentWatchers = await setupWatchers(currentConfig, eventEmitter)
         logMessage(`🐕 Shadowdog has been restarted successfully.`)

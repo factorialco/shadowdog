@@ -53,8 +53,17 @@ cli
       fn.listener(eventEmitter, options ?? {})
     })
 
+    // Emit config loaded event for plugins that need access to the full config
+    eventEmitter.emit('configLoaded', { config })
+
+    // Emit generate started event
+    eventEmitter.emit('generateStarted')
+
     try {
       await generate(config, eventEmitter, { continueOnError: watch })
+
+      // Emit allTasksComplete event after generate phase completes
+      eventEmitter.emit('allTasksComplete')
     } catch (error: unknown) {
       logMessage(`🚫 Unable to perform the initial generation because some command has failed.`)
       logError(error as Error)

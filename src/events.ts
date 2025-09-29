@@ -8,6 +8,9 @@ type ShadowdogEvents = {
   end: [{ artifacts: ArtifactConfig[] }]
   error: [{ artifacts: ArtifactConfig[]; errorMessage: string }]
   changed: [{ path: string; type: 'add' | 'change' | 'unlink' }]
+  configLoaded: [{ config: unknown }]
+  allTasksComplete: []
+  generateStarted: []
 }
 
 export class ShadowdogEventEmitter extends EventEmitter<ShadowdogEvents> {}
