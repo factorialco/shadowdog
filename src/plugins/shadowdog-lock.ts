@@ -1,5 +1,5 @@
-import * as fs from 'fs-extra'
-import { writeFileSync } from 'fs'
+// fs-extra is used for ensureDir but we're not using it directly in this file
+import { writeFileSync, readFileSync } from 'fs'
 import * as path from 'path'
 
 import chalk from 'chalk'
@@ -37,6 +37,32 @@ let lockFilePath: string = ''
 let config: ConfigFile | null = null
 let writePromise: Promise<void> | null = null
 let isInGenerateMode: boolean = false
+
+// Function to detect and resolve merge conflicts in lock file
+const detectAndResolveConflicts = (filePath: string): boolean => {
+  try {
+    const content = readFileSync(filePath, 'utf8')
+
+    // Check for common merge conflict markers
+    if (content.includes('<<<<<<<') || content.includes('=======') || content.includes('>>>>>>>')) {
+      logMessage(`🔧 Detected merge conflicts in lock file. Regenerating from scratch...`)
+      return true
+    }
+
+    // Check if the file is valid JSON
+    try {
+      JSON.parse(content)
+    } catch {
+      logMessage(`🔧 Lock file contains invalid JSON. Regenerating from scratch...`)
+      return true
+    }
+
+    return false
+  } catch {
+    // File doesn't exist or can't be read, that's fine
+    return false
+  }
+}
 
 // Helper functions
 
@@ -92,6 +118,9 @@ const regenerateLockFile = async () => {
     if (!lockFilePath) {
       lockFilePath = path.resolve(process.cwd(), 'shadowdog-lock.json')
     }
+
+    // Note: Conflict detection is already done in configLoaded event
+    // This function will regenerate the lock file regardless
 
     // Generate all artifacts in deterministic order based on shadowdog.json
     const allArtifacts: LockFileArtifact[] = []
@@ -150,7 +179,17 @@ const listener: Listener<PluginConfig<'shadowdog-lock'>> = (eventEmitter) => {
   // Store config reference when it's loaded
   eventEmitter.on('configLoaded', ({ config: loadedConfig }) => {
     config = loadedConfig as ConfigFile
-    // Don't regenerate immediately - wait for the appropriate event
+
+    // Initialize lock file path and check for conflicts early
+    if (!lockFilePath) {
+      lockFilePath = path.resolve(process.cwd(), 'shadowdog-lock.json')
+    }
+
+    // Check for merge conflicts and resolve them immediately
+    if (detectAndResolveConflicts(lockFilePath)) {
+      // Regenerate immediately to resolve conflicts
+      regenerateLockFile()
+    }
   })
 
   // Mark when generate mode starts
