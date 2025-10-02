@@ -65,12 +65,36 @@ const matchesIgnorePattern = (filePath: string, pattern: string): boolean => {
   return false
 }
 
-export const processFiles = (files: string[], ignoredFiles: string[] = []): string[] => {
+export const processFiles = (
+  files: string[],
+  ignoredFiles: string[] = [],
+  preserveNonExistent: boolean = false,
+): string[] => {
   // Expand glob patterns and filter to files only
   const allFiles = files
     .map((file) => path.join(process.cwd(), file))
-    .flatMap((globPath) => glob.sync(globPath))
-    .filter((filePath) => fs.statSync(filePath).isFile())
+    .flatMap((globPath) => {
+      const matches = glob.sync(globPath)
+      // If preserveNonExistent is true and no matches found, keep the original path
+      // This is important for dependency tracking when files don't exist yet
+      if (preserveNonExistent && matches.length === 0 && !globPath.includes('*')) {
+        return [globPath]
+      }
+      return matches
+    })
+    .filter((filePath) => {
+      // If preserveNonExistent is true, don't filter out non-existent files
+      // unless they contain glob patterns (which should have been resolved)
+      if (preserveNonExistent && !path.relative(process.cwd(), filePath).includes('*')) {
+        try {
+          return fs.statSync(filePath).isFile()
+        } catch {
+          // File doesn't exist, but we want to preserve it for dependency tracking
+          return true
+        }
+      }
+      return fs.statSync(filePath).isFile()
+    })
     .sort()
 
   if (ignoredFiles.length === 0) {
