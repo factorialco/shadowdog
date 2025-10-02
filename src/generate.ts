@@ -112,10 +112,11 @@ export const generate = async (
   const task: Task = {
     type: 'parallel',
     tasks: config.watchers.flatMap((watcherConfig) => {
-      const files = processFiles(watcherConfig.files, [
-        ...watcherConfig.ignored,
-        ...config.defaultIgnoredFiles,
-      ])
+      const files = processFiles(
+        watcherConfig.files,
+        [...watcherConfig.ignored, ...config.defaultIgnoredFiles],
+        true,
+      ) // Enable preserveNonExistent for dependency tracking
 
       return watcherConfig.commands.map((commandConfig) => ({
         type: 'command',
