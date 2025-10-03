@@ -1,6 +1,8 @@
 // fs-extra is used for ensureDir but we're not using it directly in this file
-import { writeFileSync, readFileSync } from 'fs'
+import { writeFileSync, readFileSync, statSync } from 'fs'
 import * as path from 'path'
+import * as crypto from 'crypto'
+import { sync as globSync } from 'glob'
 
 import chalk from 'chalk'
 import { Listener } from '.'
@@ -17,6 +19,7 @@ import { ArtifactConfig, ConfigFile } from '../config'
 // Lock file structure interfaces
 interface LockFileArtifact {
   output: string
+  outputSha: string
   cacheIdentifier: string
   fileManifest: {
     watchedFilesCount: number
@@ -66,6 +69,45 @@ const detectAndResolveConflicts = (filePath: string): boolean => {
 
 // Helper functions
 
+// Compute SHA256 hash of artifact content
+const computeArtifactContentSha = (artifactPath: string): string => {
+  try {
+    const fullPath = path.join(process.cwd(), artifactPath)
+    const stats = statSync(fullPath)
+
+    if (stats.isDirectory()) {
+      // For directories, create a hash based on all file contents and structure
+      const files = globSync('**/*', { cwd: fullPath, nodir: true }).sort()
+
+      const hash = crypto.createHash('sha256')
+      hash.update(`directory:${artifactPath}`)
+
+      for (const file of files) {
+        const filePath = path.join(fullPath, file)
+        hash.update(`file:${file}`)
+        try {
+          const content = readFileSync(filePath)
+          hash.update(content)
+        } catch {
+          // Skip files that can't be read
+          hash.update('unreadable')
+        }
+      }
+
+      return hash.digest('hex').slice(0, 10)
+    } else {
+      // For files, hash the content directly
+      const content = readFileSync(fullPath)
+      const hash = crypto.createHash('sha256')
+      hash.update(content)
+      return hash.digest('hex').slice(0, 10)
+    }
+  } catch {
+    // If artifact doesn't exist or can't be read, return a placeholder
+    return 'not-found'
+  }
+}
+
 const createArtifactEntry = (
   artifact: ArtifactConfig,
   files: string[],
@@ -88,8 +130,12 @@ const createArtifactEntry = (
   const currentCache = computeCache(files, environment, command)
   const artifactCacheIdentifier = computeFileCacheName(currentCache, artifact.output)
 
+  // Compute SHA of the artifact content
+  const outputSha = computeArtifactContentSha(artifact.output)
+
   return {
     output: artifact.output,
+    outputSha,
     cacheIdentifier: artifactCacheIdentifier,
     fileManifest: {
       watchedFilesCount: files.length,

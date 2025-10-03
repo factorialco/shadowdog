@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 
 import { CommandConfig, ConfigFile, PluginsConfig } from './config'
 import { ShadowdogEventEmitter } from './events'
@@ -34,6 +35,68 @@ interface GenerateOptions {
   continueOnError: boolean
 }
 
+// Wait for artifact files to be written and readable
+const waitForArtifacts = async (artifacts: CommandConfig['artifacts']): Promise<void> => {
+  // Make max retries configurable via environment variable for faster CI tests
+  const maxRetries = process.env.SHADOWDOG_ARTIFACT_WAIT_MAX_RETRIES
+    ? parseInt(process.env.SHADOWDOG_ARTIFACT_WAIT_MAX_RETRIES, 10)
+    : 50 // Default: 5 seconds max wait time
+  const retryDelay = 100 // 100ms between retries
+
+  for (const artifact of artifacts) {
+    const artifactPath = path.join(process.cwd(), artifact.output)
+    let retries = 0
+
+    while (retries < maxRetries) {
+      try {
+        // Check if file exists and is readable
+        await fs.promises.access(artifactPath, fs.constants.F_OK | fs.constants.R_OK)
+
+        // For files, also verify they have content (not empty)
+        const stats = await fs.promises.stat(artifactPath)
+        if (stats.isFile() && stats.size === 0) {
+          throw new Error('File is empty')
+        }
+
+        // File exists and is readable with content, move to next artifact
+        break
+      } catch {
+        // File doesn't exist or isn't readable yet, wait and retry
+        await new Promise((resolve) => setTimeout(resolve, retryDelay))
+        retries++
+      }
+    }
+
+    if (retries >= maxRetries) {
+      // Fail the build if artifact is not available after max retries
+      // This ensures we catch cases where commands don't produce expected outputs
+      throw new Error(
+        `Artifact '${artifact.output}' was not created or is not readable after task completion. ` +
+          `Waited ${(maxRetries * retryDelay) / 1000} seconds.`,
+      )
+    }
+  }
+}
+
+// Clean up existing artifacts before running a task
+const cleanupArtifacts = async (artifacts: CommandConfig['artifacts']): Promise<void> => {
+  for (const artifact of artifacts) {
+    const artifactPath = path.join(process.cwd(), artifact.output)
+
+    try {
+      const stats = await fs.promises.stat(artifactPath)
+
+      if (stats.isDirectory()) {
+        await fs.promises.rm(artifactPath, { recursive: true, force: true })
+      } else {
+        await fs.promises.unlink(artifactPath)
+      }
+    } catch {
+      // Artifact doesn't exist, which is fine
+    }
+  }
+}
+
 const processTask = async (
   task: Task,
   pluginsConfig: PluginsConfig,
@@ -57,6 +120,10 @@ const processTask = async (
         artifacts: task.config.artifacts,
       })
 
+      // Clean up existing artifacts before running the task
+      // This ensures we start with a clean state and can reliably detect when new artifacts are created
+      await cleanupArtifacts(task.config.artifacts)
+
       const taskRunner = new TaskRunner({
         files: task.files,
         environment: task.environment,
@@ -79,6 +146,10 @@ const processTask = async (
 
       try {
         await taskRunner.execute()
+
+        // Wait for all artifacts to be written and readable before proceeding
+        // This ensures dependent tasks can read the updated artifact files
+        await waitForArtifacts(task.config.artifacts)
 
         eventEmitter.emit('end', {
           artifacts: task.config.artifacts,

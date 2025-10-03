@@ -29,6 +29,8 @@ jobs:
         run: npm run format:check
 
       - name: Test
+        env:
+          SHADOWDOG_ARTIFACT_WAIT_MAX_RETRIES: 10 # Speed up CI tests (1 second max wait instead of 5)
         run: npm test
 
       - name: Generate (forgot to update src/config/schema.json)
