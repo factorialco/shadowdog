@@ -78,25 +78,6 @@ const waitForArtifacts = async (artifacts: CommandConfig['artifacts']): Promise<
   }
 }
 
-// Clean up existing artifacts before running a task
-const cleanupArtifacts = async (artifacts: CommandConfig['artifacts']): Promise<void> => {
-  for (const artifact of artifacts) {
-    const artifactPath = path.join(process.cwd(), artifact.output)
-
-    try {
-      const stats = await fs.promises.stat(artifactPath)
-
-      if (stats.isDirectory()) {
-        await fs.promises.rm(artifactPath, { recursive: true, force: true })
-      } else {
-        await fs.promises.unlink(artifactPath)
-      }
-    } catch {
-      // Artifact doesn't exist, which is fine
-    }
-  }
-}
-
 const processTask = async (
   task: Task,
   pluginsConfig: PluginsConfig,
@@ -119,10 +100,6 @@ const processTask = async (
       eventEmitter.emit('begin', {
         artifacts: task.config.artifacts,
       })
-
-      // Clean up existing artifacts before running the task
-      // This ensures we start with a clean state and can reliably detect when new artifacts are created
-      await cleanupArtifacts(task.config.artifacts)
 
       const taskRunner = new TaskRunner({
         files: task.files,
