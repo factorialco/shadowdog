@@ -39,73 +39,7 @@ describe('generate', () => {
     }
   })
 
-  describe('artifact cleanup and verification', () => {
-    it('should clean up existing artifacts before running tasks', async () => {
-      // Create an existing artifact
-      await fs.promises.writeFile('output.txt', 'old content')
-      expect(fs.existsSync('output.txt')).toBe(true)
-
-      const config = createConfig({
-        watchers: [
-          createWatcher({
-            files: ['input.txt'],
-            commands: [
-              {
-                command: "node -e \"require('fs').writeFileSync('output.txt', 'fresh content')\"",
-                workingDirectory: '',
-                tags: [],
-                artifacts: [{ output: 'output.txt' }],
-              },
-            ],
-          }),
-        ],
-      })
-
-      // Create input file
-      await fs.promises.writeFile('input.txt', 'test input')
-
-      await generate(config, new ShadowdogEventEmitter(), { continueOnError: false })
-
-      // Verify the artifact was recreated with new content
-      const content = await fs.promises.readFile('output.txt', 'utf-8')
-      expect(content).toBe('fresh content')
-    }, 10000)
-
-    it('should clean up existing artifact directories before running tasks', async () => {
-      // Create an existing artifact directory
-      await fs.promises.mkdir('output-dir', { recursive: true })
-      await fs.promises.writeFile('output-dir/old.txt', 'old content')
-      expect(fs.existsSync('output-dir/old.txt')).toBe(true)
-
-      const config = createConfig({
-        watchers: [
-          createWatcher({
-            files: ['input.txt'],
-            commands: [
-              {
-                command:
-                  "node -e \"require('fs').mkdirSync('output-dir', {recursive: true}); require('fs').writeFileSync('output-dir/fresh.txt', 'fresh')\"",
-                workingDirectory: '',
-                tags: [],
-                artifacts: [{ output: 'output-dir' }],
-              },
-            ],
-          }),
-        ],
-      })
-
-      // Create input file
-      await fs.promises.writeFile('input.txt', 'test input')
-
-      await generate(config, new ShadowdogEventEmitter(), { continueOnError: false })
-
-      // Verify the old file is gone and new file exists
-      expect(fs.existsSync('output-dir/old.txt')).toBe(false)
-      expect(fs.existsSync('output-dir/fresh.txt')).toBe(true)
-      const content = await fs.promises.readFile('output-dir/fresh.txt', 'utf-8')
-      expect(content).toBe('fresh')
-    }, 10000)
-
+  describe('artifact verification', () => {
     it('should wait for artifacts to be created and readable', async () => {
       const config = createConfig({
         watchers: [
@@ -174,7 +108,7 @@ describe('generate', () => {
       }
     }, 10000)
 
-    it('should handle dependency chains correctly with artifact cleanup and verification', async () => {
+    it('should handle dependency chains correctly with artifact verification', async () => {
       // Create source file
       await fs.promises.writeFile('source.rb', 'permissions updated')
 
@@ -228,7 +162,7 @@ describe('generate', () => {
       expect(finalContent).toBe('schema from generated from permissions updated')
     }, 10000)
 
-    it('should not fail if artifact to cleanup does not exist', async () => {
+    it('should not fail if artifact does not exist initially', async () => {
       const config = createConfig({
         watchers: [
           createWatcher({
