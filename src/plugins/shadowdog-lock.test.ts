@@ -15,11 +15,13 @@ vi.mock('fs-extra', () => ({
 // Mock fs writeFileSync
 vi.mock('fs', () => ({
   writeFileSync: vi.fn(),
+  readFileSync: vi.fn(),
+  statSync: vi.fn(),
 }))
 
 // Mock glob
 vi.mock('glob', () => ({
-  glob: vi.fn(),
+  sync: vi.fn().mockReturnValue([]),
 }))
 
 // Mock utils
@@ -290,5 +292,59 @@ describe('shadowdog-lock plugin', () => {
     // The lock file should be written (we can verify this works in integration tests)
     // For now, just verify the function doesn't throw
     expect(true).toBe(true)
+  })
+
+  it('should include outputSha in lock file artifacts', async () => {
+    const { readFileSync, statSync } = await import('fs')
+    const mockReadFileSync = readFileSync as unknown as ReturnType<typeof vi.fn>
+    const mockStatSync = statSync as unknown as ReturnType<typeof vi.fn>
+
+    // Mock file system responses for content SHA calculation
+    mockStatSync.mockReturnValue({ isDirectory: () => false })
+    mockReadFileSync.mockReturnValue(Buffer.from('test file content'))
+
+    const configWithArtifacts = {
+      debounceTime: 100,
+      watchers: [
+        {
+          files: ['src/test.ts'],
+          environment: ['NODE_ENV'],
+          ignored: [],
+          commands: [
+            {
+              command: 'npm run build',
+              artifacts: [{ output: 'dist/app.js' }, { output: 'dist/styles.css' }],
+            },
+          ],
+        },
+      ],
+      plugins: [],
+      defaultIgnoredFiles: [],
+    }
+
+    // Set up the listener
+    shadowdogLock.listener(mockEventEmitter, { path: '/tmp/shadowdog/lock' })
+
+    // Emit config loaded event
+    mockEventEmitter.emit('configLoaded', { config: configWithArtifacts })
+
+    // Wait for async operations
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    // Verify that writeFileSync was called with lock file containing outputSha
+    expect(writeFileSync).toHaveBeenCalled()
+    const mockWriteFileSync = writeFileSync as unknown as ReturnType<typeof vi.fn>
+    const writeCall = mockWriteFileSync.mock.calls.find(
+      (call: unknown[]) => typeof call[0] === 'string' && call[0].includes('shadowdog-lock.json'),
+    )
+
+    if (writeCall) {
+      const lockFileContent = JSON.parse(writeCall[1] as string)
+      expect(lockFileContent.artifacts).toBeDefined()
+      expect(lockFileContent.artifacts.length).toBeGreaterThan(0)
+      expect(lockFileContent.artifacts[0]).toHaveProperty('outputSha')
+      expect(typeof lockFileContent.artifacts[0].outputSha).toBe('string')
+      expect(lockFileContent.artifacts[0].outputSha.length).toBeGreaterThan(0)
+    }
   })
 })
