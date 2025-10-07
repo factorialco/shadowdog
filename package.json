@@ -1,6 +1,6 @@
 {
   "name": "@factorialco/shadowdog",
-  "version": "0.8.6",
+  "version": "0.8.5",
   "description": "",
   "bin": {
     "shadowdog": "dist/src/cli.js"
@@ -58,6 +58,7 @@
     "all": "npm run build && npm run lint && npm run format && npm run generate && npm test"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.19.1",
     "chalk": "^4",
     "chokidar": "^3.5.3",
     "commander": "^12.1.0",

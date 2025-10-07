@@ -12,7 +12,11 @@ import { ShadowdogEventEmitter } from './events'
 import { filterMiddlewarePlugins } from './plugins'
 import { TaskRunner } from './task-runner'
 
-const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) => {
+const setupWatchers = (
+  config: ConfigFile,
+  eventEmitter: ShadowdogEventEmitter,
+  getIsPaused: () => boolean,
+) => {
   return Promise.all<chokidar.FSWatcher>(
     config.watchers
       .filter(({ files, enabled = true }) => {
@@ -62,6 +66,14 @@ const setupWatchers = (config: ConfigFile, eventEmitter: ShadowdogEventEmitter) 
             logMessage(
               `🔀 File '${chalk.blue(changedFilePath)}' has been ${chalk.cyanBright(action)}`,
             )
+
+            // Check if shadowdog is paused
+            if (getIsPaused()) {
+              logMessage(
+                `⏸️  ${chalk.yellow('File change ignored due to pause:')} ${changedFilePath}`,
+              )
+              return
+            }
 
             killPendingTasks()
 
@@ -154,7 +166,12 @@ export const runDaemon = async (
   eventEmitter: ShadowdogEventEmitter,
 ) => {
   let currentConfig = config
-  let currentWatchers: chokidar.FSWatcher[] = await setupWatchers(currentConfig, eventEmitter)
+  let isPaused = false
+  let currentWatchers: chokidar.FSWatcher[] = await setupWatchers(
+    currentConfig,
+    eventEmitter,
+    () => isPaused,
+  )
 
   const configWatcher = chokidar.watch(configFilePath, {
     ignoreInitial: true,
@@ -169,13 +186,111 @@ export const runDaemon = async (
         // Emit config loaded event for plugins that need to update
         eventEmitter.emit('configLoaded', { config: currentConfig })
         await Promise.all(currentWatchers.map((watcher) => watcher.close()))
-        currentWatchers = await setupWatchers(currentConfig, eventEmitter)
+        currentWatchers = await setupWatchers(currentConfig, eventEmitter, () => isPaused)
         logMessage(`🐕 Shadowdog has been restarted successfully.`)
       } catch (error) {
         logMessage(`🚨 Error while restarting Shadowdog: ${(error as Error).message}`)
       }
     }, currentConfig.debounceTime),
   )
+
+  // Handle pause/resume events
+  eventEmitter.on('pause', () => {
+    isPaused = true
+    logMessage(`⏸️  ${chalk.yellow('Shadowdog has been paused via MCP')}`)
+  })
+
+  eventEmitter.on('resume', () => {
+    isPaused = false
+    logMessage(`▶️  ${chalk.green('Shadowdog has been resumed via MCP')}`)
+  })
+
+  // Handle artifact computation requests
+  eventEmitter.on('computeArtifact', async ({ artifactOutput }) => {
+    if (isPaused) {
+      logMessage(
+        `⏸️  ${chalk.yellow('Artifact computation skipped due to pause:')} ${artifactOutput}`,
+      )
+      return
+    }
+
+    logMessage(`🔨 ${chalk.blue('Computing artifact via MCP:')} ${chalk.cyan(artifactOutput)}`)
+
+    // Find the command configuration for this artifact
+    let commandConfig: {
+      command: string
+      workingDirectory: string
+      files: string[]
+      environment: string[]
+    } | null = null
+    let watcherConfig: { files: string[]; environment: string[]; ignored: string[] } | null = null
+
+    for (const watcher of currentConfig.watchers) {
+      for (const cmdConfig of watcher.commands) {
+        for (const artifact of cmdConfig.artifacts) {
+          if (artifact.output === artifactOutput) {
+            commandConfig = {
+              command: cmdConfig.command,
+              workingDirectory: cmdConfig.workingDirectory,
+              files: watcher.files,
+              environment: watcher.environment,
+            }
+            watcherConfig = {
+              files: watcher.files,
+              environment: watcher.environment,
+              ignored: watcher.ignored,
+            }
+            break
+          }
+        }
+        if (commandConfig) break
+      }
+      if (commandConfig) break
+    }
+
+    if (!commandConfig || !watcherConfig) {
+      logMessage(`❌ ${chalk.red('No command found for artifact:')} ${artifactOutput}`)
+      return
+    }
+
+    try {
+      // Pre-process files with ignores
+      const processedFiles = processFiles(watcherConfig.files, [
+        ...watcherConfig.ignored,
+        ...currentConfig.defaultIgnoredFiles,
+      ])
+
+      const taskRunner = new TaskRunner({
+        files: processedFiles,
+        environment: watcherConfig.environment,
+        config: {
+          command: commandConfig.command,
+          workingDirectory: commandConfig.workingDirectory,
+          tags: [],
+          artifacts: [{ output: artifactOutput }],
+        },
+        eventEmitter,
+      })
+
+      filterMiddlewarePlugins(currentConfig.plugins).forEach(({ fn, options }) => {
+        taskRunner.use(fn.middleware, options)
+      })
+
+      taskRunner.use(() => {
+        return runTask({
+          command: commandConfig!.command,
+          workingDirectory: path.join(process.cwd(), commandConfig!.workingDirectory),
+          onSpawn: () => {}, // No need to track for MCP requests
+          onExit: () => {}, // No need to track for MCP requests
+        })
+      })
+
+      await taskRunner.execute()
+      logMessage(`✅ ${chalk.green('Artifact computed successfully:')} ${artifactOutput}`)
+    } catch (error) {
+      logMessage(`❌ ${chalk.red('Failed to compute artifact:')} ${(error as Error).message}`)
+    }
+  })
 
   logMessage(`🚀 Shadowdog ${chalk.blue(readShadowdogVersion())} is ready to watch your files!`)
 

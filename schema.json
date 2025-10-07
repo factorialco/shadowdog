@@ -193,6 +193,28 @@
             },
             "required": ["name"],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "const": "shadowdog-mcp"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "autoStart": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "additionalProperties": false,
+                "default": {}
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false
           }
         ]
       },

@@ -12,6 +12,7 @@ import shadowdogTree from './shadowdog-tree'
 import shadowdogSocket from './shadowdog-socket'
 import shadowdogGit from './shadowdog-git'
 import shadowdogLock from './shadowdog-lock'
+import shadowdogMcp from './shadowdog-mcp'
 
 import { ShadowdogEventEmitter } from '../events'
 
@@ -61,6 +62,11 @@ type PluginsMap = {
       Extract<z.infer<typeof pluginOptionsSchema>, { name: 'shadowdog-lock' }>['options']
     >
   }
+  'shadowdog-mcp': {
+    listener: Listener<
+      Extract<z.infer<typeof pluginOptionsSchema>, { name: 'shadowdog-mcp' }>['options']
+    >
+  }
 }
 
 const PLUGINS_MAP = {
@@ -72,6 +78,7 @@ const PLUGINS_MAP = {
   'shadowdog-socket': shadowdogSocket,
   'shadowdog-git': shadowdogGit,
   'shadowdog-lock': shadowdogLock,
+  'shadowdog-mcp': shadowdogMcp,
 } as const satisfies PluginsMap
 
 const filterUsedPlugins = (config: PluginsConfig) =>
