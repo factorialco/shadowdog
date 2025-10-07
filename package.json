@@ -1,6 +1,6 @@
 {
   "name": "@factorialco/shadowdog",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "",
   "bin": {
     "shadowdog": "dist/src/cli.js"
