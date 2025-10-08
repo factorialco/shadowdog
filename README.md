@@ -70,13 +70,9 @@ Shadowdog provides a variety of commands to simplify your workflows:
   ```bash
   npx shadowdog
   ```
-- **Watch mode**:
+- **Watch mode** (includes MCP server for external tool integration):
   ```bash
   npx shadowdog --watch
-  ```
-- **MCP Server mode** (for external tool integration):
-  ```bash
-  npx shadowdog --mcp
   ```
 
 ---
@@ -160,9 +156,6 @@ Enhance Shadowdog with these powerful plugins:
 - **`shadowdog-mcp`**
   Provides a Model Context Protocol (MCP) server for external tools (like Cursor AI) to interact with Shadowdog programmatically.
 
-  Configuration options:
-  - `autoStart`: Whether to automatically start the MCP server (default: `true`)
-
   Environment variables:
   - `SHADOWDOG_MCP_PORT`: HTTP port for MCP server (default: `8473`)
   - `SHADOWDOG_MCP_HOST`: HTTP host for MCP server (default: `localhost`)
@@ -181,7 +174,7 @@ Enhance Shadowdog with these powerful plugins:
   ```json
   {
     "mcpServers": {
-      "shadowdog-mcp": {
+      "shadowdog": {
         "url": "http://localhost:8473/mcp"
       }
     }
@@ -217,7 +210,9 @@ Take into account that the order of plugins is important. The plugins will be ex
 
 ## MCP Integration 🤖
 
-Shadowdog includes a built-in Model Context Protocol (MCP) server that allows AI tools like Cursor to interact with your build system programmatically.
+Shadowdog includes a built-in Model Context Protocol (MCP) server that allows AI tools like Cursor to interact with your build system programmatically. The MCP server starts automatically when you run Shadowdog in watch mode.
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=shadowdog&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0Ojg0NzMvbWNwIn0%3D)
 
 ### Quick Setup
 
@@ -232,9 +227,9 @@ Shadowdog includes a built-in Model Context Protocol (MCP) server that allows AI
    }
    ```
 
-2. **Start the MCP server:**
+2. **Start in watch mode** (MCP server starts automatically):
    ```bash
-   npx shadowdog --mcp
+   npx shadowdog --watch
    ```
 
 3. **Configure Cursor:**
@@ -242,7 +237,7 @@ Shadowdog includes a built-in Model Context Protocol (MCP) server that allows AI
    ```json
    {
      "mcpServers": {
-       "shadowdog-mcp": {
+       "shadowdog": {
          "url": "http://localhost:8473/mcp"
        }
      }
@@ -263,7 +258,6 @@ Once connected, you can use these tools in Cursor:
 
 - **Custom Port**: Set `SHADOWDOG_MCP_PORT=9000` to use a different port
 - **Custom Host**: Set `SHADOWDOG_MCP_HOST=0.0.0.0` to allow external connections
-- **Auto-start**: The MCP server starts automatically in watch mode when the plugin is enabled
 
 For detailed Cursor MCP setup instructions, see: [Cursor MCP Installation Guide](https://cursor.com/docs/context/mcp/install-links)
 

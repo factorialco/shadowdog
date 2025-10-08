@@ -14,6 +14,7 @@ type ShadowdogEvents = {
   pause: []
   resume: []
   computeArtifact: [{ artifactOutput: string }]
+  computeAllArtifacts: [{ artifacts: ArtifactConfig[] }]
 }
 
 export class ShadowdogEventEmitter extends EventEmitter<ShadowdogEvents> {}

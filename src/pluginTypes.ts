@@ -34,11 +34,7 @@ export const pluginOptionsSchema = z.discriminatedUnion('name', [
   }),
   z.object({
     name: z.literal('shadowdog-mcp'),
-    options: z
-      .object({
-        autoStart: z.boolean().default(true),
-      })
-      .default({}),
+    options: z.object({}).default({}),
   }),
 ])
 

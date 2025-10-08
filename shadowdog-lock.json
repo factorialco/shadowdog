@@ -4,8 +4,8 @@
   "artifacts": [
     {
       "output": "schema.json",
-      "outputSha": "35f13f0bdf",
-      "cacheIdentifier": "58e01ab3f5",
+      "outputSha": "41bde325f1",
+      "cacheIdentifier": "11ac802eeb",
       "fileManifest": {
         "watchedFilesCount": 4,
         "watchedFiles": [

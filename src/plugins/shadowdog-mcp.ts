@@ -210,6 +210,16 @@ const TOOLS: Tool[] = [
       required: [],
     },
   },
+  {
+    name: 'compute-all-artifacts',
+    description:
+      "Computes all artifacts by triggering the daemon's artifact generation system for every configured artifact. This properly integrates with shadowdog's artifact management system, respects configuration settings, uses the same task runner and middleware as the daemon, and provides consistent logging. This allows generating all artifacts at once without running individual artifact commands.",
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
 ]
 
 // Initialize MCP server
@@ -443,6 +453,60 @@ const initializeMCPServer = () => {
               ],
               isError: true,
             }
+          }
+        }
+
+        case 'compute-all-artifacts': {
+          if (!eventEmitter) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `❌ ${chalk.red('Error:')} Shadowdog daemon not available.`,
+                },
+              ],
+              isError: true,
+            }
+          }
+
+          if (!config) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `❌ ${chalk.red('Error:')} Shadowdog configuration not loaded.`,
+                },
+              ],
+              isError: true,
+            }
+          }
+
+          // Get all artifacts from config
+          const allArtifacts = getAllArtifacts()
+
+          if (allArtifacts.length === 0) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `ℹ️  ${chalk.blue('No artifacts found in configuration.')} Nothing to compute.`,
+                },
+              ],
+            }
+          }
+
+          // Emit event to daemon to compute all artifacts
+          eventEmitter.emit('computeAllArtifacts', {
+            artifacts: allArtifacts.map((artifact) => ({ output: artifact.output })),
+          })
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `🔨 ${chalk.blue('All artifacts computation request sent.')} Computing ${chalk.cyan(allArtifacts.length)} artifacts. Check the daemon logs for progress.`,
+              },
+            ],
           }
         }
 
@@ -721,6 +785,58 @@ const initializeMCPServer = () => {
                 }
                 break
               }
+              case 'compute-all-artifacts': {
+                if (!eventEmitter) {
+                  result = {
+                    content: [
+                      {
+                        type: 'text',
+                        text: `❌ ${chalk.red('Error:')} Shadowdog daemon not available.`,
+                      },
+                    ],
+                    isError: true,
+                  }
+                } else if (!config) {
+                  result = {
+                    content: [
+                      {
+                        type: 'text',
+                        text: `❌ ${chalk.red('Error:')} Shadowdog configuration not loaded.`,
+                      },
+                    ],
+                    isError: true,
+                  }
+                } else {
+                  // Get all artifacts from config
+                  const allArtifacts = getAllArtifacts()
+
+                  if (allArtifacts.length === 0) {
+                    result = {
+                      content: [
+                        {
+                          type: 'text',
+                          text: `ℹ️  ${chalk.blue('No artifacts found in configuration.')} Nothing to compute.`,
+                        },
+                      ],
+                    }
+                  } else {
+                    // Emit event to daemon to compute all artifacts
+                    eventEmitter.emit('computeAllArtifacts', {
+                      artifacts: allArtifacts.map((artifact) => ({ output: artifact.output })),
+                    })
+
+                    result = {
+                      content: [
+                        {
+                          type: 'text',
+                          text: `🔨 ${chalk.blue('All artifacts computation request sent.')} Computing ${chalk.cyan(allArtifacts.length)} artifacts. Check the daemon logs for progress.`,
+                        },
+                      ],
+                    }
+                  }
+                }
+                break
+              }
               default:
                 result = {
                   content: [
@@ -780,7 +896,7 @@ const initializeMCPServer = () => {
       logMessage(`📋 To connect from Cursor, add to your MCP config:`)
       logMessage(`   ${chalk.yellow(`"shadowdog-mcp": { "url": "${serverUrl}" }`)}`)
       logMessage(
-        `   Available tools: pause-shadowdog, resume-shadowdog, get-artifacts, compute-artifact, get-shadowdog-status, clear-shadowdog-cache`,
+        `   Available tools: pause-shadowdog, resume-shadowdog, get-artifacts, compute-artifact, compute-all-artifacts, get-shadowdog-status, clear-shadowdog-cache`,
       )
       logMessage(
         `🔗 Setup guide: ${chalk.underline('https://cursor.com/docs/context/mcp/install-links')}`,
@@ -794,7 +910,7 @@ const initializeMCPServer = () => {
 }
 
 // Event listener plugin implementation
-const listener: Listener<PluginConfig<'shadowdog-mcp'>> = (eventEmitterParam, options) => {
+const listener: Listener<PluginConfig<'shadowdog-mcp'>> = (eventEmitterParam) => {
   // Store event emitter reference
   eventEmitter = eventEmitterParam
 
@@ -808,9 +924,7 @@ const listener: Listener<PluginConfig<'shadowdog-mcp'>> = (eventEmitterParam, op
 
   // Initialize MCP server when shadowdog initializes
   eventEmitter.on('initialized', () => {
-    if (options.autoStart !== false) {
-      initializeMCPServer()
-    }
+    initializeMCPServer()
   })
 
   // Clean up on exit

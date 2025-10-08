@@ -203,12 +203,7 @@
               },
               "options": {
                 "type": "object",
-                "properties": {
-                  "autoStart": {
-                    "type": "boolean",
-                    "default": true
-                  }
-                },
+                "properties": {},
                 "additionalProperties": false,
                 "default": {}
               }

@@ -47,6 +47,9 @@
     "prepublishOnly": "vitest run",
     "test": "vitest run --silent",
     "test:watch": "vitest",
+    "test:integration": "node test/integration/mcp-integration.test.js",
+    "test:e2e": "node test/e2e/run-e2e-tests.js",
+    "test:all": "npm run test && npm run test:integration && npm run test:e2e",
     "coverage": "vitest run --coverage",
     "lint": "eslint",
     "lint:inspect-config": "eslint --inspect-config",
@@ -55,7 +58,7 @@
     "build-schema": "tsx src/build-schema.ts",
     "generate": "tsx src/cli.ts",
     "watch": "tsx src/cli.ts --watch",
-    "all": "npm run build && npm run lint && npm run format && npm run generate && npm test"
+    "all": "npm run build && npm run lint && npm run format && npm run generate && npm run test:all"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.19.1",

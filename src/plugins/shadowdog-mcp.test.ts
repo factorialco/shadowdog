@@ -31,7 +31,7 @@ describe('shadowdog-mcp', () => {
 
   describe('plugin initialization', () => {
     it('should register event listeners when initialized', () => {
-      const options = { autoStart: false }
+      const options = {}
 
       expect(() => {
         shadowdogMcp.listener(eventEmitter, options)
@@ -39,7 +39,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should handle configLoaded event', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       const mockConfig = {
@@ -72,22 +72,11 @@ describe('shadowdog-mcp', () => {
         eventEmitter.emit('configLoaded', { config: mockConfig })
       }).not.toThrow()
     })
-
-    it('should not auto-start MCP server when autoStart is false', () => {
-      const options = { autoStart: false }
-      shadowdogMcp.listener(eventEmitter, options)
-
-      // Emit initialized event
-      eventEmitter.emit('initialized')
-
-      // Server should not be started (no way to test directly without exposing internals)
-      // This is more of an integration test
-    })
   })
 
   describe('pause/resume functionality', () => {
     it('should handle begin event when not paused', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       const mockArtifacts = [{ output: 'dist/output.js' }]
@@ -99,7 +88,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should handle config with multiple watchers', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       const mockConfig = {
@@ -147,7 +136,7 @@ describe('shadowdog-mcp', () => {
 
   describe('lock file integration', () => {
     it('should handle missing lock file gracefully', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       const mockConfig = {
@@ -181,7 +170,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should read lock file when it exists', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       // Create a mock lock file
@@ -236,7 +225,7 @@ describe('shadowdog-mcp', () => {
 
   describe('event handling', () => {
     it('should handle exit event', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       expect(() => {
@@ -245,7 +234,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should handle end event', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       expect(() => {
@@ -254,7 +243,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should handle error event', () => {
-      const options = { autoStart: false }
+      const options = {}
 
       // Add an error handler to prevent unhandled error
       eventEmitter.on('error', () => {
@@ -274,7 +263,7 @@ describe('shadowdog-mcp', () => {
 
   describe('artifact tracking', () => {
     it('should track artifacts from config', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       const mockConfig = {
@@ -311,7 +300,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should handle artifacts with descriptions', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       const mockConfig = {
@@ -351,7 +340,7 @@ describe('shadowdog-mcp', () => {
 
   describe('integration with other events', () => {
     it('should handle allTasksComplete event', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       expect(() => {
@@ -360,7 +349,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should handle generateStarted event', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       expect(() => {
@@ -369,7 +358,7 @@ describe('shadowdog-mcp', () => {
     })
 
     it('should handle multiple sequential events', () => {
-      const options = { autoStart: false }
+      const options = {}
       shadowdogMcp.listener(eventEmitter, options)
 
       const mockConfig = {
@@ -400,6 +389,104 @@ describe('shadowdog-mcp', () => {
         eventEmitter.emit('begin', { artifacts: [{ output: 'dist/output.js' }] })
         eventEmitter.emit('end', { artifacts: [{ output: 'dist/output.js' }] })
         eventEmitter.emit('allTasksComplete')
+      }).not.toThrow()
+    })
+  })
+
+  describe('compute-all-artifacts functionality', () => {
+    it('should handle computeAllArtifacts event when daemon is available', () => {
+      const options = {}
+      shadowdogMcp.listener(eventEmitter, options)
+
+      const mockConfig = {
+        debounceTime: 2000,
+        defaultIgnoredFiles: ['.git'],
+        plugins: [],
+        watchers: [
+          {
+            enabled: true,
+            files: ['src/**/*.ts'],
+            environment: [],
+            ignored: [],
+            commands: [
+              {
+                command: 'tsc',
+                workingDirectory: '',
+                tags: [],
+                artifacts: [{ output: 'dist/app.js' }, { output: 'dist/types.d.ts' }],
+              },
+            ],
+          },
+        ],
+      }
+
+      eventEmitter.emit('configLoaded', { config: mockConfig })
+
+      // Should not throw when emitting computeAllArtifacts event
+      expect(() => {
+        eventEmitter.emit('computeAllArtifacts', {
+          artifacts: [{ output: 'dist/app.js' }, { output: 'dist/types.d.ts' }],
+        })
+      }).not.toThrow()
+    })
+
+    it('should handle computeAllArtifacts event with multiple watchers', () => {
+      const options = {}
+      shadowdogMcp.listener(eventEmitter, options)
+
+      const mockConfig = {
+        debounceTime: 2000,
+        defaultIgnoredFiles: ['.git'],
+        plugins: [],
+        watchers: [
+          {
+            enabled: true,
+            files: ['src/**/*.ts'],
+            environment: [],
+            ignored: [],
+            commands: [
+              {
+                command: 'tsc',
+                workingDirectory: '',
+                tags: [],
+                artifacts: [{ output: 'dist/app.js' }],
+              },
+            ],
+          },
+          {
+            enabled: true,
+            files: ['styles/**/*.css'],
+            environment: [],
+            ignored: [],
+            commands: [
+              {
+                command: 'postcss',
+                workingDirectory: '',
+                tags: [],
+                artifacts: [{ output: 'dist/styles.css' }],
+              },
+            ],
+          },
+        ],
+      }
+
+      eventEmitter.emit('configLoaded', { config: mockConfig })
+
+      // Should not throw when emitting computeAllArtifacts event with multiple watchers
+      expect(() => {
+        eventEmitter.emit('computeAllArtifacts', {
+          artifacts: [{ output: 'dist/app.js' }, { output: 'dist/styles.css' }],
+        })
+      }).not.toThrow()
+    })
+
+    it('should handle computeAllArtifacts event with empty artifacts array', () => {
+      const options = {}
+      shadowdogMcp.listener(eventEmitter, options)
+
+      // Should not throw when emitting computeAllArtifacts event with empty array
+      expect(() => {
+        eventEmitter.emit('computeAllArtifacts', { artifacts: [] })
       }).not.toThrow()
     })
   })

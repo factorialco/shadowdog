@@ -28,10 +28,20 @@ jobs:
       - name: Format
         run: npm run format:check
 
-      - name: Test
+      - name: Unit Tests
         env:
           SHADOWDOG_ARTIFACT_WAIT_MAX_RETRIES: 10 # Speed up CI tests (1 second max wait instead of 5)
         run: npm test
+
+      - name: Integration Tests
+        env:
+          SHADOWDOG_ARTIFACT_WAIT_MAX_RETRIES: 10 # Speed up CI tests (1 second max wait instead of 5)
+        run: npm run test:integration
+
+      - name: E2E Tests
+        env:
+          SHADOWDOG_ARTIFACT_WAIT_MAX_RETRIES: 10 # Speed up CI tests (1 second max wait instead of 5)
+        run: npm run test:e2e
 
       - name: Generate (forgot to update src/config/schema.json)
         env:
