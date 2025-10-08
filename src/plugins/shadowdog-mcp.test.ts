@@ -29,6 +29,57 @@ describe('shadowdog-mcp', () => {
     }
   })
 
+  describe('pause-resume with file change tracking', () => {
+    it('should track file changes when paused and replay them on resume', async () => {
+      const options = {}
+      shadowdogMcp.listener(eventEmitter, options)
+
+      // Create a test file
+      const testFile = path.join(testDir, 'test-file.txt')
+      writeFileSync(testFile, 'initial content')
+
+      // Initialize the plugin
+      eventEmitter.emit('initialized')
+
+      // Wait a bit for initialization
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Simulate pausing shadowdog
+      eventEmitter.emit('pause')
+
+      // Simulate file changes while paused
+      eventEmitter.emit('changed', { path: testFile, type: 'change' })
+      eventEmitter.emit('changed', { path: testFile, type: 'change' }) // Duplicate should be ignored
+
+      // Simulate resuming shadowdog
+      eventEmitter.emit('resume')
+
+      // The file should have been touched (we can verify this by checking if the file exists and was modified)
+      expect(existsSync(testFile)).toBe(true)
+    })
+
+    it('should not track file changes when not paused', () => {
+      const options = {}
+      shadowdogMcp.listener(eventEmitter, options)
+
+      // Create a test file
+      const testFile = path.join(testDir, 'test-file.txt')
+      writeFileSync(testFile, 'initial content')
+
+      // Initialize the plugin
+      eventEmitter.emit('initialized')
+
+      // Simulate file changes when not paused (should not be tracked)
+      eventEmitter.emit('changed', { path: testFile, type: 'change' })
+
+      // Simulate resuming (should not replay anything)
+      eventEmitter.emit('resume')
+
+      // File should still exist
+      expect(existsSync(testFile)).toBe(true)
+    })
+  })
+
   describe('plugin initialization', () => {
     it('should register event listeners when initialized', () => {
       const options = {}

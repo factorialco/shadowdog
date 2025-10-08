@@ -4,7 +4,7 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js'
-import { readFileSync, existsSync, statSync, rmSync } from 'fs'
+import { readFileSync, existsSync, statSync, rmSync, utimesSync } from 'fs'
 import * as path from 'path'
 import { createServer } from 'http'
 
@@ -21,6 +21,10 @@ let lockFilePath: string = ''
 let server: Server | null = null
 let httpServer: ReturnType<typeof createServer> | null = null
 let eventEmitter: ShadowdogEventEmitter | null = null
+
+// Pending changes tracking (similar to git plugin)
+let pendingChangedFiles: string[] = []
+let isPaused = false
 
 // Interface for artifact data
 interface ArtifactData {
@@ -103,6 +107,45 @@ const statSyncSafe = (filePath: string) => {
   } catch {
     return null
   }
+}
+
+// Helper to handle file changes when paused
+const handleFileChange = (filePath: string) => {
+  if (isPaused) {
+    // Track the file change for later processing
+    if (!pendingChangedFiles.includes(filePath)) {
+      pendingChangedFiles.push(filePath)
+    }
+    return true // Indicates the change was handled (ignored)
+  }
+  return false // Indicates the change should be processed normally
+}
+
+// Helper to replay pending changes when resuming
+const replayPendingChanges = () => {
+  if (pendingChangedFiles.length === 0) {
+    return
+  }
+
+  logMessage(
+    `🔄 Replaying ${chalk.cyan(pendingChangedFiles.length)} file changes that occurred while paused...`,
+  )
+
+  const now = new Date()
+  pendingChangedFiles.forEach((filePath) => {
+    try {
+      // Touch the file to trigger file watchers
+      utimesSync(filePath, now, now)
+      logMessage(`  ✓ Replayed: ${chalk.blue(filePath)}`)
+    } catch (error) {
+      logMessage(`  ✗ Failed to replay: ${chalk.red(filePath)} - ${(error as Error).message}`)
+    }
+  })
+
+  logMessage(`✅ Successfully replayed ${chalk.cyan(pendingChangedFiles.length)} file changes.`)
+
+  // Clear the pending changes
+  pendingChangedFiles = []
 }
 
 // Helper to find command config for a specific artifact
@@ -265,12 +308,13 @@ const initializeMCPServer = () => {
             }
           }
 
+          isPaused = true
           eventEmitter.emit('pause')
           return {
             content: [
               {
                 type: 'text',
-                text: `⏸️  ${chalk.yellow('Successfully paused shadowdog.')} Automatic artifact generation is now disabled.`,
+                text: `⏸️  ${chalk.yellow('Successfully paused shadowdog.')} File changes will be tracked and replayed on resume.`,
               },
             ],
           }
@@ -289,7 +333,12 @@ const initializeMCPServer = () => {
             }
           }
 
+          isPaused = false
           eventEmitter.emit('resume')
+
+          // Replay any pending changes that occurred while paused
+          replayPendingChanges()
+
           return {
             content: [
               {
@@ -608,12 +657,13 @@ const initializeMCPServer = () => {
                     isError: true,
                   }
                 } else {
+                  isPaused = true
                   eventEmitter.emit('pause')
                   result = {
                     content: [
                       {
                         type: 'text',
-                        text: `⏸️  ${chalk.yellow('Successfully paused shadowdog.')} Automatic artifact generation is now disabled.`,
+                        text: `⏸️  ${chalk.yellow('Successfully paused shadowdog.')} File changes will be tracked and replayed on resume.`,
                       },
                     ],
                   }
@@ -631,7 +681,12 @@ const initializeMCPServer = () => {
                     isError: true,
                   }
                 } else {
+                  isPaused = false
                   eventEmitter.emit('resume')
+
+                  // Replay any pending changes that occurred while paused
+                  replayPendingChanges()
+
                   result = {
                     content: [
                       {
@@ -925,6 +980,11 @@ const listener: Listener<PluginConfig<'shadowdog-mcp'>> = (eventEmitterParam) =>
   // Initialize MCP server when shadowdog initializes
   eventEmitter.on('initialized', () => {
     initializeMCPServer()
+  })
+
+  // Listen for file changes to track them when paused
+  eventEmitter.on('changed', ({ path: filePath, type }) => {
+    handleFileChange(filePath)
   })
 
   // Clean up on exit

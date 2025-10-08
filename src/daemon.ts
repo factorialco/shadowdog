@@ -151,9 +151,11 @@ const setupWatchers = (
 
             // Check if shadowdog is paused
             if (getIsPaused()) {
-              logMessage(
-                `⏸️  ${chalk.yellow('File change ignored due to pause:')} ${changedFilePath}`,
-              )
+              logMessage(`⏸️  File change ignored due to pause: '${chalk.blue(changedFilePath)}'`)
+              // Emit changed event for plugins to track while paused
+              const eventType =
+                action === 'added' ? 'add' : action === 'changed' ? 'change' : 'unlink'
+              eventEmitter.emit('changed', { path: changedFilePath, type: eventType })
               return
             }
 
@@ -298,12 +300,12 @@ export const runDaemon = async (
   // Handle pause/resume events
   eventEmitter.on('pause', () => {
     isPaused = true
-    logMessage(`⏸️  ${chalk.yellow('Shadowdog has been paused via MCP')}`)
+    logMessage(`⏸️  Shadowdog has been paused via MCP`)
   })
 
   eventEmitter.on('resume', () => {
     isPaused = false
-    logMessage(`▶️  ${chalk.green('Shadowdog has been resumed via MCP')}`)
+    logMessage(`▶️  Shadowdog has been resumed via MCP`)
   })
 
   // Handle artifact computation requests
@@ -315,7 +317,7 @@ export const runDaemon = async (
       return
     }
 
-    logMessage(`🔨 ${chalk.blue('Computing artifact via MCP:')} ${chalk.cyan(artifactOutput)}`)
+    logMessage(`🔨 Computing artifact via MCP: ${chalk.blue(artifactOutput)}`)
 
     // Kill any pending tasks before starting new computation
     killPendingTasks()
@@ -341,10 +343,55 @@ export const runDaemon = async (
         },
       )
 
-      logMessage(`✅ ${chalk.green('Artifact computed successfully:')} ${artifactOutput}`)
+      logMessage(`✅ Artifact computed successfully: ${chalk.blue(artifactOutput)}`)
     } catch (error) {
-      logMessage(`❌ ${chalk.red('Failed to compute artifact:')} ${(error as Error).message}`)
+      logMessage(`❌ Failed to compute artifact: ${(error as Error).message}`)
     }
+  })
+
+  // Handle compute all artifacts requests
+  eventEmitter.on('computeAllArtifacts', async ({ artifacts }) => {
+    if (isPaused) {
+      logMessage(`⏸️  ${chalk.yellow('All artifacts computation skipped due to pause')}`)
+      return
+    }
+
+    logMessage(`🔨 Computing all artifacts via MCP: ${chalk.blue(artifacts.length)} artifacts`)
+
+    // Kill any pending tasks before starting new computation
+    killPendingTasks()
+
+    // Process each artifact
+    for (const artifact of artifacts) {
+      const commandInfo = findCommandForArtifact(currentConfig, artifact.output)
+
+      if (!commandInfo) {
+        logMessage(`❌ ${chalk.red('No command found for artifact:')} ${artifact.output}`)
+        continue
+      }
+
+      try {
+        logMessage(`🔨 Computing artifact: ${chalk.blue(artifact.output)}`)
+
+        await executeTask(
+          currentConfig,
+          commandInfo.commandConfig,
+          commandInfo.watcherConfig,
+          eventEmitter,
+          {
+            artifacts: [{ output: artifact.output }],
+            onSpawn: () => {}, // No need to track for MCP requests
+            onExit: () => {}, // No need to track for MCP requests
+          },
+        )
+
+        logMessage(`✅ Artifact computed successfully: ${chalk.blue(artifact.output)}`)
+      } catch (error) {
+        logMessage(`❌ Failed to compute artifact ${artifact.output}: ${(error as Error).message}`)
+      }
+    }
+
+    logMessage(`✅ All artifacts computation completed`)
   })
 
   logMessage(`🚀 Shadowdog ${chalk.blue(readShadowdogVersion())} is ready to watch your files!`)
