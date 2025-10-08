@@ -983,7 +983,7 @@ const listener: Listener<PluginConfig<'shadowdog-mcp'>> = (eventEmitterParam) =>
   })
 
   // Listen for file changes to track them when paused
-  eventEmitter.on('changed', ({ path: filePath, type }) => {
+  eventEmitter.on('changed', ({ path: filePath }) => {
     handleFileChange(filePath)
   })
 
