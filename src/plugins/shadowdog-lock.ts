@@ -210,7 +210,7 @@ const regenerateLockFile = async () => {
       const artifactCount = allArtifacts.length
       const artifactNames = allArtifacts.map((a) => a.output).join(', ')
       logMessage(
-        `📝 Lock file regenerated at '${chalk.blue(relativeLockPath)}' with ${chalk.blue(artifactCount)} artifacts: ${chalk.green(artifactNames)} ${chalk.cyan(`(${seconds}s)`)}`,
+        `📝 Lock file regenerated at '${chalk.blue(relativeLockPath)}' with ${chalk.blue(artifactCount)} artifacts: ${chalk.blue(artifactNames)} ${chalk.cyan(`(${seconds}s)`)}`,
       )
     } catch (error) {
       logMessage(`❌ Failed to write lock file: ${(error as Error).message}`)

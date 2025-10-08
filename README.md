@@ -70,7 +70,7 @@ Shadowdog provides a variety of commands to simplify your workflows:
   ```bash
   npx shadowdog
   ```
-- **Watch mode**:
+- **Watch mode** (includes MCP server for external tool integration):
   ```bash
   npx shadowdog --watch
   ```
@@ -153,6 +153,36 @@ Enhance Shadowdog with these powerful plugins:
 
   No configurable environment variables. Automatically detects and combines rake tasks.
 
+- **`shadowdog-mcp`**
+  Provides a Model Context Protocol (MCP) server for external tools (like Cursor AI) to interact with Shadowdog programmatically.
+
+  Environment variables:
+  - `SHADOWDOG_MCP_PORT`: HTTP port for MCP server (default: `8473`)
+  - `SHADOWDOG_MCP_HOST`: HTTP host for MCP server (default: `localhost`)
+
+  Available MCP Tools:
+  - `pause-shadowdog`: Pauses shadowdog in watch mode to prevent artifact generation during code changes (properly integrated with daemon)
+  - `resume-shadowdog`: Resumes shadowdog after being paused (properly integrated with daemon)
+  - `get-artifacts`: Retrieves information about all artifacts, including status, last update time, and associated files
+  - `compute-artifact`: Generates a specific artifact using the same task runner and middleware as the daemon
+  - `get-shadowdog-status`: Gets the current status of shadowdog including daemon availability and configuration summary
+
+  **Connection**: HTTP endpoint at `http://localhost:8473/mcp` (configurable via environment variables)
+
+  **Cursor Integration**:
+  To connect with Cursor, add this to your MCP configuration:
+  ```json
+  {
+    "mcpServers": {
+      "shadowdog": {
+        "url": "http://localhost:8473/mcp"
+      }
+    }
+  }
+  ```
+
+  For detailed Cursor MCP setup instructions, see: [Cursor MCP Installation Guide](https://cursor.com/docs/context/mcp/install-links)
+
 ### Using plugins
 
 To use a plugin, add it to the `plugins` section of your `shadowdog.json` configuration file. For example:
@@ -175,6 +205,61 @@ Update your configuration:
 ```
 
 Take into account that the order of plugins is important. The plugins will be executed in the order they are defined in the configuration file.
+
+---
+
+## MCP Integration 🤖
+
+Shadowdog includes a built-in Model Context Protocol (MCP) server that allows AI tools like Cursor to interact with your build system programmatically. The MCP server starts automatically when you run Shadowdog in watch mode.
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=shadowdog&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0Ojg0NzMvbWNwIn0%3D)
+
+### Quick Setup
+
+1. **Add the MCP plugin to your configuration:**
+   ```json
+   {
+     "plugins": [
+       {
+         "name": "shadowdog-mcp"
+       }
+     ]
+   }
+   ```
+
+2. **Start in watch mode** (MCP server starts automatically):
+   ```bash
+   npx shadowdog --watch
+   ```
+
+3. **Configure Cursor:**
+   Add this to your Cursor MCP configuration:
+   ```json
+   {
+     "mcpServers": {
+       "shadowdog": {
+         "url": "http://localhost:8473/mcp"
+       }
+     }
+   }
+   ```
+
+### Available MCP Tools
+
+Once connected, you can use these tools in Cursor:
+
+- **`pause-shadowdog`** - Pause artifact generation during code changes (properly integrated with daemon)
+- **`resume-shadowdog`** - Resume artifact generation after changes (properly integrated with daemon)
+- **`get-artifacts`** - Query artifact status and information
+- **`compute-artifact`** - Generate specific artifacts on demand using the same task runner as the daemon
+- **`get-shadowdog-status`** - Check shadowdog's current state and daemon availability
+
+### Advanced Configuration
+
+- **Custom Port**: Set `SHADOWDOG_MCP_PORT=9000` to use a different port
+- **Custom Host**: Set `SHADOWDOG_MCP_HOST=0.0.0.0` to allow external connections
+
+For detailed Cursor MCP setup instructions, see: [Cursor MCP Installation Guide](https://cursor.com/docs/context/mcp/install-links)
 
 ---
 

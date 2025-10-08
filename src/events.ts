@@ -11,6 +11,10 @@ type ShadowdogEvents = {
   configLoaded: [{ config: unknown }]
   allTasksComplete: []
   generateStarted: []
+  pause: []
+  resume: []
+  computeArtifact: [{ artifactOutput: string }]
+  computeAllArtifacts: [{ artifacts: ArtifactConfig[] }]
 }
 
 export class ShadowdogEventEmitter extends EventEmitter<ShadowdogEvents> {}
