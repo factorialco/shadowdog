@@ -231,7 +231,7 @@ const restoreCache = async (
               )}', proceeding with restore`,
             )
           }
-        } catch (error: unknown) {
+        } catch {
           // If temp extraction fails, try direct restore
           try {
             await fs.remove(tempOutputPath)
