@@ -83,17 +83,12 @@ const restoreCache = async (
       // Double-check: verify that the file doesn't exist or that the content doesn't match the computed SHA
       if (artifactExists) {
         // Extract to a temporary location to compute its SHA
-        const tempOutputPath = path.join(
-          cachePath,
-          `.temp-${cacheFileName}-${Date.now()}`,
-        )
+        const tempOutputPath = path.join(cachePath, `.temp-${cacheFileName}-${Date.now()}`)
 
         try {
           // Extract cache to temp location
-          await decompressArtifact(
-            cacheFilePath,
-            tempOutputPath,
-            (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
+          await decompressArtifact(cacheFilePath, tempOutputPath, (filePath) =>
+            filterFn(artifact.ignore, artifact.output, filePath),
           )
 
           // Find the extracted artifact in temp location

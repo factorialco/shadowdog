@@ -24,8 +24,11 @@ describe('shadowdog local cache', () => {
   })
 
   afterEach(() => {
-    fs.rmSync('tmp', { recursive: true })
-    return next.mockClear()
+    // Clean up all test directories
+    if (fs.existsSync('tmp')) {
+      fs.rmSync('tmp', { recursive: true, force: true })
+    }
+    next.mockClear()
   })
 
   describe('when cache is not present', () => {
@@ -136,7 +139,15 @@ describe('shadowdog local cache', () => {
   describe('when local cache path is overriden by env var', () => {
     beforeEach(async () => {
       vi.stubEnv('SHADOWDOG_LOCAL_CACHE_PATH', 'tmp/tests/cache_overriden')
+      fs.mkdirpSync('tmp/tests/cache_overriden')
       fs.writeFileSync('tmp/tests/artifacts/foo', 'foo')
+    })
+
+    afterEach(() => {
+      // Clean up the overridden cache path
+      if (fs.existsSync('tmp/tests/cache_overriden')) {
+        fs.rmSync('tmp/tests/cache_overriden', { recursive: true, force: true })
+      }
     })
 
     afterAll(() => {
