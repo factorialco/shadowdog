@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { execSync } from 'child_process'
 import fs from 'fs-extra'
 import * as minio from 'minio'
+import * as os from 'os'
 import path from 'path'
 import * as tar from 'tar'
 import * as zlib from 'zlib'
@@ -9,7 +10,13 @@ import * as zlib from 'zlib'
 import { Middleware } from '.'
 import { ArtifactConfig, CommandConfig } from '../config'
 import { PluginConfig } from '../pluginTypes'
-import { computeCache, computeFileCacheName, logError, logMessage } from '../utils'
+import {
+  computeArtifactContentSha,
+  computeCache,
+  computeFileCacheName,
+  logError,
+  logMessage,
+} from '../utils'
 
 const createClient = () => {
   const { AWS_PROFILE } = process.env
@@ -84,16 +91,17 @@ const restoreRemoteCache = async (
   bucket: string,
   objectName: string,
   artifact: ArtifactConfig,
+  outputPath?: string,
 ) => {
   const stream = await client.getObject(bucket, objectName)
-  const outputPath = path.join(process.cwd(), artifact.output, '..')
+  const targetPath = outputPath ?? path.join(process.cwd(), artifact.output, '..')
 
-  fs.mkdirpSync(outputPath)
+  fs.mkdirpSync(targetPath)
 
   return new Promise((resolve, reject) => {
     const extractStream = stream.pipe(
       tar.extract({
-        cwd: outputPath,
+        cwd: targetPath,
         filter: (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
       }),
     )
@@ -136,14 +144,118 @@ const restoreCache = async (
     const cacheFilePath = path.join(pluginOptions.path, `${cacheFileName}.tar.gz`)
 
     try {
-      await restoreRemoteCache(client, pluginOptions.bucketName, cacheFilePath, artifact)
+      // Check if artifact exists in remote cache by attempting to get object stats
+      try {
+        await client.statObject(pluginOptions.bucketName, cacheFilePath)
+      } catch {
+        // Object doesn't exist in remote cache
+        const seconds = ((Date.now() - start) / 1000).toFixed(2)
+        logMessage(
+          `🌐 Not able to reuse artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+            cacheFileName,
+          )}' from remote cache because of cache ${chalk.bgRed('MISS')} ${chalk.cyan(`(${seconds}s)`)}`,
+        )
+        return artifact
+      }
 
-      const seconds = ((Date.now() - start) / 1000).toFixed(2)
-      logMessage(
-        `🌐 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
-          cacheFileName,
-        )}' from remote cache because of cache ${chalk.bgGreen('HIT')} ${chalk.cyan(`(${seconds}s)`)}`,
-      )
+      const artifactPath = path.join(process.cwd(), artifact.output)
+      const artifactExists = await fs.exists(artifactPath)
+
+      // Double-check: verify that the file doesn't exist or that the content doesn't match the computed SHA
+      if (artifactExists) {
+        // Extract to a temporary location to compute its SHA
+        const tempOutputPath = path.join(
+          os.tmpdir(),
+          `shadowdog-remote-cache-temp-${cacheFileName}-${Date.now()}`,
+        )
+
+        try {
+          // Extract cache to temp location
+          await restoreRemoteCache(
+            client,
+            pluginOptions.bucketName,
+            cacheFilePath,
+            artifact,
+            tempOutputPath,
+          )
+
+          // Find the extracted artifact in temp location
+          // The artifact is extracted with its basename preserved
+          const artifactBasename = path.basename(artifact.output)
+          const extractedArtifactPath = path.join(tempOutputPath, artifactBasename)
+
+          // Check if extracted artifact exists (it should)
+          if (await fs.exists(extractedArtifactPath)) {
+            // Compute SHA of cached artifact (from temp location)
+            // Use absolute path since computeArtifactContentSha expects relative to cwd
+            const cachedSha = computeArtifactContentSha(
+              path.relative(process.cwd(), extractedArtifactPath),
+            )
+
+            // Compute SHA of existing artifact
+            const existingSha = computeArtifactContentSha(artifact.output)
+
+            // Clean up temp location
+            await fs.remove(tempOutputPath)
+
+            // If SHAs match, skip restore (artifact is already correct)
+            if (cachedSha !== null && existingSha !== null && cachedSha === existingSha) {
+              const seconds = ((Date.now() - start) / 1000).toFixed(2)
+              logMessage(
+                `🌐 Skipping restore of artifact '${chalk.blue(
+                  artifact.output,
+                )}' with id '${chalk.green(
+                  cacheFileName,
+                )}' because existing file matches cached content (SHA: ${chalk.cyan(
+                  cachedSha,
+                )}) ${chalk.cyan(`(${seconds}s)`)}`,
+              )
+              return null
+            }
+
+            // SHAs don't match or one is null, proceed with restore
+            const seconds = ((Date.now() - start) / 1000).toFixed(2)
+            logMessage(
+              `🌐 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+                cacheFileName,
+              )}' from remote cache because of cache ${chalk.bgGreen('HIT')} (existing SHA: ${chalk.cyan(
+                existingSha ?? 'N/A',
+              )}, cached SHA: ${chalk.cyan(cachedSha ?? 'N/A')}) ${chalk.cyan(`(${seconds}s)`)}`,
+            )
+          } else {
+            // Extracted artifact not found in expected location, proceed with restore
+            await fs.remove(tempOutputPath)
+            logMessage(
+              `⚠️  Could not find extracted artifact in temp location for '${chalk.blue(
+                artifact.output,
+              )}', proceeding with restore`,
+            )
+          }
+        } catch (error: unknown) {
+          // If temp extraction fails, try direct restore
+          try {
+            await fs.remove(tempOutputPath)
+          } catch {
+            // Ignore cleanup errors
+          }
+          logMessage(
+            `⚠️  Could not verify SHA for artifact '${chalk.blue(
+              artifact.output,
+            )}', proceeding with restore`,
+          )
+        }
+      } else {
+        // Artifact doesn't exist, proceed with restore
+        const seconds = ((Date.now() - start) / 1000).toFixed(2)
+        logMessage(
+          `🌐 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+            cacheFileName,
+          )}' from remote cache because of cache ${chalk.bgGreen('HIT')} ${chalk.cyan(`(${seconds}s)`)}`,
+        )
+      }
+
+      // Restore the artifact to its final location
+      await restoreRemoteCache(client, pluginOptions.bucketName, cacheFilePath, artifact)
 
       return null
     } catch (error) {

@@ -7,7 +7,13 @@ import chalk from 'chalk'
 import { Middleware } from '.'
 import { CommandConfig } from '../config'
 import { PluginConfig } from '../pluginTypes'
-import { computeCache, computeFileCacheName, logError, logMessage } from '../utils'
+import {
+  computeArtifactContentSha,
+  computeCache,
+  computeFileCacheName,
+  logError,
+  logMessage,
+} from '../utils'
 
 type FilterFn = (file: string) => boolean
 
@@ -71,11 +77,94 @@ const restoreCache = async (
 
     // First, we check if the artifact is in the local file system cache
     if (fs.existsSync(cacheFilePath)) {
-      logMessage(
-        `📦 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
-          cacheFileName,
-        )}' from local cache because of cache ${chalk.bgGreen('HIT')}`,
-      )
+      const artifactPath = path.join(process.cwd(), artifact.output)
+      const artifactExists = await fs.exists(artifactPath)
+
+      // Double-check: verify that the file doesn't exist or that the content doesn't match the computed SHA
+      if (artifactExists) {
+        // Extract to a temporary location to compute its SHA
+        const tempOutputPath = path.join(
+          cachePath,
+          `.temp-${cacheFileName}-${Date.now()}`,
+        )
+
+        try {
+          // Extract cache to temp location
+          await decompressArtifact(
+            cacheFilePath,
+            tempOutputPath,
+            (filePath) => filterFn(artifact.ignore, artifact.output, filePath),
+          )
+
+          // Find the extracted artifact in temp location
+          // The artifact is extracted with its basename preserved
+          const artifactBasename = path.basename(artifact.output)
+          const extractedArtifactPath = path.join(tempOutputPath, artifactBasename)
+
+          // Check if extracted artifact exists (it should)
+          if (await fs.exists(extractedArtifactPath)) {
+            // Compute SHA of cached artifact (from temp location)
+            // Use absolute path since computeArtifactContentSha expects relative to cwd
+            const cachedSha = computeArtifactContentSha(
+              path.relative(process.cwd(), extractedArtifactPath),
+            )
+
+            // Compute SHA of existing artifact
+            const existingSha = computeArtifactContentSha(artifact.output)
+
+            // Clean up temp location
+            await fs.remove(tempOutputPath)
+
+            // If SHAs match, skip restore (artifact is already correct)
+            if (cachedSha !== null && existingSha !== null && cachedSha === existingSha) {
+              logMessage(
+                `📦 Skipping restore of artifact '${chalk.blue(
+                  artifact.output,
+                )}' with id '${chalk.green(
+                  cacheFileName,
+                )}' because existing file matches cached content (SHA: ${chalk.cyan(cachedSha)})`,
+              )
+              return null
+            }
+
+            // SHAs don't match or one is null, proceed with restore
+            logMessage(
+              `📦 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+                cacheFileName,
+              )}' from local cache because of cache ${chalk.bgGreen('HIT')} (existing SHA: ${chalk.cyan(
+                existingSha ?? 'N/A',
+              )}, cached SHA: ${chalk.cyan(cachedSha ?? 'N/A')})`,
+            )
+          } else {
+            // Extracted artifact not found in expected location, proceed with restore
+            await fs.remove(tempOutputPath)
+            logMessage(
+              `⚠️  Could not find extracted artifact in temp location for '${chalk.blue(
+                artifact.output,
+              )}', proceeding with restore`,
+            )
+          }
+        } catch (error: unknown) {
+          // If temp extraction fails, try direct restore
+          try {
+            await fs.remove(tempOutputPath)
+          } catch {
+            // Ignore cleanup errors
+          }
+          logMessage(
+            `⚠️  Could not verify SHA for artifact '${chalk.blue(
+              artifact.output,
+            )}', proceeding with restore`,
+          )
+        }
+      } else {
+        // Artifact doesn't exist, proceed with restore
+        logMessage(
+          `📦 Reusing artifact '${chalk.blue(artifact.output)}' with id '${chalk.green(
+            cacheFileName,
+          )}' from local cache because of cache ${chalk.bgGreen('HIT')}`,
+        )
+      }
 
       try {
         await decompressArtifact(

@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
 import { ShadowdogEventEmitter } from './events'
+import { sync as globSync } from 'glob'
 
 export const logMessage = (message: string) => {
   console.log(message)
@@ -134,4 +135,43 @@ export const computeFileCacheName = (currentCache: string, fileName: string) => 
   hash.update(fileName)
 
   return hash.digest('hex').slice(0, 10)
+}
+
+// Compute SHA256 hash of artifact content (file or directory)
+export const computeArtifactContentSha = (artifactPath: string): string | null => {
+  try {
+    const fullPath = path.join(process.cwd(), artifactPath)
+    const stats = fs.statSync(fullPath)
+
+    if (stats.isDirectory()) {
+      // For directories, create a hash based on all file contents and structure
+      const files = globSync('**/*', { cwd: fullPath, nodir: true }).sort()
+
+      const hash = crypto.createHash('sha256')
+      hash.update(`directory:${artifactPath}`)
+
+      for (const file of files) {
+        const filePath = path.join(fullPath, file)
+        hash.update(`file:${file}`)
+        try {
+          const content = fs.readFileSync(filePath)
+          hash.update(content)
+        } catch {
+          // Skip files that can't be read
+          hash.update('unreadable')
+        }
+      }
+
+      return hash.digest('hex').slice(0, 10)
+    } else {
+      // For files, hash the content directly
+      const content = fs.readFileSync(fullPath)
+      const hash = crypto.createHash('sha256')
+      hash.update(content)
+      return hash.digest('hex').slice(0, 10)
+    }
+  } catch {
+    // If artifact doesn't exist or can't be read, return null
+    return null
+  }
 }
