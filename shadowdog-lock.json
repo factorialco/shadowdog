@@ -6,6 +6,7 @@
       "output": "schema.json",
       "outputSha": "41bde325f1",
       "cacheIdentifier": "bedd92986f",
+      "executionTime": 0.011,
       "fileManifest": {
         "watchedFilesCount": 4,
         "watchedFiles": [

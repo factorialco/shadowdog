@@ -21,6 +21,7 @@ interface LockFileArtifact {
   output: string
   outputSha: string
   cacheIdentifier: string
+  executionTime: number
   fileManifest: {
     watchedFilesCount: number
     watchedFiles: string[]
@@ -40,6 +41,9 @@ let lockFilePath: string = ''
 let config: ConfigFile | null = null
 let writePromise: Promise<void> | null = null
 let isInGenerateMode: boolean = false
+// Track execution times per artifact (keyed by artifact output)
+const artifactExecutionTimes = new Map<string, number>()
+const artifactStartTimes = new Map<string, number>()
 
 // Function to detect and resolve merge conflicts in lock file
 const detectAndResolveConflicts = (filePath: string): boolean => {
@@ -133,10 +137,14 @@ const createArtifactEntry = (
   // Compute SHA of the artifact content
   const outputSha = computeArtifactContentSha(artifact.output)
 
+  // Get execution time for this artifact (default to 0 if not tracked)
+  const executionTime = artifactExecutionTimes.get(artifact.output) ?? 0
+
   return {
     output: artifact.output,
     outputSha,
     cacheIdentifier: artifactCacheIdentifier,
+    executionTime,
     fileManifest: {
       watchedFilesCount: files.length,
       watchedFiles: files,
@@ -241,6 +249,9 @@ const listener: Listener<PluginConfig<'shadowdog-lock'>> = (eventEmitter) => {
   // Mark when generate mode starts
   eventEmitter.on('generateStarted', () => {
     isInGenerateMode = true
+    // Clear execution times when starting a new generation
+    artifactExecutionTimes.clear()
+    artifactStartTimes.clear()
   })
 
   // Regenerate lock file after all tasks complete in generate mode
@@ -249,10 +260,28 @@ const listener: Listener<PluginConfig<'shadowdog-lock'>> = (eventEmitter) => {
     await regenerateLockFile()
   })
 
-  // Regenerate lock file after each task completion in daemon mode only
-  // (not during the initial generate phase)
-  eventEmitter.on('end', async () => {
-    // Only regenerate in daemon mode (when not in generate mode)
+  // Track when artifacts begin execution
+  eventEmitter.on('begin', ({ artifacts }) => {
+    const startTime = Date.now()
+    for (const artifact of artifacts) {
+      artifactStartTimes.set(artifact.output, startTime)
+    }
+  })
+
+  // Track when artifacts end execution and calculate execution time
+  eventEmitter.on('end', async ({ artifacts }) => {
+    const endTime = Date.now()
+    for (const artifact of artifacts) {
+      const startTime = artifactStartTimes.get(artifact.output)
+      if (startTime !== undefined) {
+        const executionTime = (endTime - startTime) / 1000 // Convert to seconds
+        artifactExecutionTimes.set(artifact.output, executionTime)
+        artifactStartTimes.delete(artifact.output)
+      }
+    }
+
+    // Regenerate lock file after each task completion in daemon mode only
+    // (not during the initial generate phase)
     if (!isInGenerateMode && config && lockFilePath) {
       await regenerateLockFile()
     }
