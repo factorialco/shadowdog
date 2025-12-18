@@ -40,12 +40,6 @@ jobs:
       - name: Bump version
         run: npm version ${{ inputs.bump_type }}
 
-      - name: Regenerate lock file
-        run: |
-          npm run generate
-          git add shadowdog-lock.json
-          git commit -m "Regenerate lock file"
-
       - name: Push changes
         run: |
           git remote set-url origin git@github.com:${{ github.repository }}.git
