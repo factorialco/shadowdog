@@ -131,3 +131,6 @@ dist
 
 dist
 tmp
+
+# Shadowdog lock file
+shadowdog-lock.json
