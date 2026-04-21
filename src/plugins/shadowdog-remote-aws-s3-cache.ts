@@ -254,6 +254,17 @@ const restoreCache = async (
         )
       }
 
+      // When replaceOnRestore is enabled, remove existing artifact before
+      // restoring from cache to prevent stale files from persisting
+      // (tar extract is additive and won't remove files that exist on
+      // disk but not in the tarball)
+      if (artifact.replaceOnRestore) {
+        const artifactFullPath = path.join(process.cwd(), artifact.output)
+        if (await fs.exists(artifactFullPath)) {
+          await fs.remove(artifactFullPath)
+        }
+      }
+
       // Restore the artifact to its final location
       await restoreRemoteCache(client, pluginOptions.bucketName, cacheFilePath, artifact)
 
