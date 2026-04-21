@@ -346,6 +346,51 @@ describe('shadowdog local cache', () => {
       })
     })
 
+    describe('when artifact is a directory with stale files not in cache', () => {
+      beforeEach(async () => {
+        // Create cache with directory containing only file1 and file2
+        fs.mkdirpSync('tmp/tests/artifacts/dir')
+        fs.writeFileSync('tmp/tests/artifacts/dir/file1.txt', 'content1')
+        fs.writeFileSync('tmp/tests/artifacts/dir/file2.txt', 'content2')
+        await compressArtifact('tmp/tests/artifacts/dir', 'tmp/tests/cache/0adeca2ac6.tar.gz')
+        // Add a stale file that is NOT in the cache (simulates old gem RBI files)
+        fs.writeFileSync('tmp/tests/artifacts/dir/stale-file.txt', 'stale content')
+      })
+
+      it('removes stale files that are not in the cached tarball', async () => {
+        await shadowdogLocalCache.middleware({
+          config: {
+            command: 'echo foo',
+            artifacts: [
+              {
+                output: 'tmp/tests/artifacts/dir',
+                replaceOnRestore: true,
+              },
+            ],
+            tags: [],
+            workingDirectory: '',
+          },
+          files: [],
+          environment: [],
+          next,
+          abort: () => {},
+          options: {
+            path: 'tmp/tests/cache',
+            read: true,
+            write: true,
+          },
+          eventEmitter,
+        })
+
+        expect(next).not.toHaveBeenCalled()
+        // Cached files should be present
+        expect(fs.readFileSync('tmp/tests/artifacts/dir/file1.txt', 'utf8')).toBe('content1')
+        expect(fs.readFileSync('tmp/tests/artifacts/dir/file2.txt', 'utf8')).toBe('content2')
+        // Stale file should be removed (not present in cache)
+        expect(fs.existsSync('tmp/tests/artifacts/dir/stale-file.txt')).toBe(false)
+      })
+    })
+
     describe('when artifact is a directory and SHA does not match', () => {
       beforeEach(async () => {
         // Create cache with directory containing files

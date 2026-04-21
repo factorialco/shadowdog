@@ -73,6 +73,12 @@ export const configSchema = z
                               .describe(
                                 'A list of files to ignore before saving the folder artifacts',
                               ),
+                            replaceOnRestore: z
+                              .boolean()
+                              .optional()
+                              .describe(
+                                'When true, removes the existing artifact before restoring from cache. Prevents stale files from persisting in directory artifacts.',
+                              ),
                           })
                           .strict()
                           .describe('An artifact produced by the command'),
