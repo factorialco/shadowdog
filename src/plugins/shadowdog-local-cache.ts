@@ -162,6 +162,17 @@ const restoreCache = async (
       }
 
       try {
+        // When replaceOnRestore is enabled, remove existing artifact before
+        // restoring from cache to prevent stale files from persisting
+        // (tar extract is additive and won't remove files that exist on
+        // disk but not in the tarball)
+        if (artifact.replaceOnRestore) {
+          const artifactFullPath = path.join(process.cwd(), artifact.output)
+          if (await fs.exists(artifactFullPath)) {
+            await fs.remove(artifactFullPath)
+          }
+        }
+
         await decompressArtifact(
           cacheFilePath,
           path.join(process.cwd(), artifact.output, '..'),

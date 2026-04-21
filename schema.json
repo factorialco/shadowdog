@@ -297,6 +297,10 @@
                           "type": "string"
                         },
                         "description": "A list of files to ignore before saving the folder artifacts"
+                      },
+                      "replaceOnRestore": {
+                        "type": "boolean",
+                        "description": "When true, removes the existing artifact before restoring from cache. Prevents stale files from persisting in directory artifacts."
                       }
                     },
                     "required": ["output"],
